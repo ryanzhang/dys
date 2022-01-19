@@ -41,8 +41,5 @@ for secID in df_secid['secID']:
     df_fixed.to_csv(output_filename, mode='a', header=need_header,encoding="gbk")
     #reset needHeader
     need_header=False
-print logdata
-# LOGFIE=StringIO(logdata)
-# df_log = pd.read_csv(LOGFILE, "sep=;")
-# df_log.to_csv("output.log", encoding="gbk")
+
 print sizeCount
