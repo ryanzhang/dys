@@ -1,6 +1,6 @@
 df_idx=DataAPI.IdxGet(secID=u"",indexGroup=u"",consType=u"",consMkt=u"",returnType=u"",       indexTypeCD=u"",porgFullName=u"",secShortName=u"",wMethodCD="",pubName=u"",industryID=u"",sortID=u"",pandas="1")
 
-count=1
+count=5
 sizeCount=0
 need_header=True
 is_exist=True
@@ -10,6 +10,10 @@ for i in df_idx.index :
     indexTypeCD = df_idx['indexTypeCD'][i]
     if  indexTypeCD == '02':        
         continue
+    if secID=="CI005382.ZICN":
+        is_exist=False
+    if is_exist:
+        continue  
         
     df=DataAPI.MktIdxdGet(indexID=secID,ticker=u"",tradeDate=u"",beginDate=u"19900101",endDate=u"20220201",exchangeCD=u"XSHE,XSHG",field=u"",pandas="1")
     
@@ -19,7 +23,7 @@ for i in df_idx.index :
         
     sizeCount=sizeCount+df.size
        
-    if sizeCount >8600000:
+    if sizeCount >10000000:
         print ("Size reached , Start to new file since secID: " + secID)
         break
         count=count+1
