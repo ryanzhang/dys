@@ -1,4 +1,6 @@
 **/csv/**
 *.log
+**/.DS_Store
 *.pkl
 .vscode
+**/*.csv
