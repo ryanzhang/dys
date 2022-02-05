@@ -1,5 +1,5 @@
-from syd.config import *
-from syd.logger import logger
+from strategy.config import *
+from strategy.logger import logger
 
 
 def test_properties_been_load():

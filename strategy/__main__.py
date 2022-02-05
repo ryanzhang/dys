@@ -1,8 +1,8 @@
 # -*- coding: UTF-8 -*-
 import argparse  # pragma: no cover
 
-from syd.logger import logger
-from syd.stocksyncer import StockSyncer  # pragma: no cover
+from strategy.logger import logger
+from strategy.stocksyncer import StockSyncer  # pragma: no cover
 
 from . import BaseClass, base_function  # pragma: no cover
 
@@ -10,7 +10,7 @@ from . import BaseClass, base_function  # pragma: no cover
 def main() -> None:  # pragma: no cover
     """
     The main function executes on commands:
-    `python -m syd` and `$ syd `.
+    `python -m strategy` and `$ strategy `.
 
     This is your program's entry point.
 
@@ -24,8 +24,8 @@ def main() -> None:  # pragma: no cover
         * Run an application (Flask, FastAPI, Django, etc.)
     """
     parser = argparse.ArgumentParser(
-        description="syd 同步我的金融数据库",
-        epilog="Enjoy the syd functionality!",
+        description="strategy 同步我的金融数据库",
+        epilog="Enjoy the strategy functionality!",
     )
     # # This is required positional argument
     # parser.add_argument(

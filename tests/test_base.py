@@ -1,6 +1,6 @@
 import pytest
 
-from syd import BaseClass, base_function
+from strategy import BaseClass, base_function
 
 given = pytest.mark.parametrize
 

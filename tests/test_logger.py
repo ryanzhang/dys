@@ -1,4 +1,4 @@
-from syd.logger import logger
+from strategy.logger import logger
 
 
 def test_logger():

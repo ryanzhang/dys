@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 import sys
 import pytest
-from syd.logger import logger
+from strategy.logger import logger
 
 # # 初始化日志
 # logging.basicConfig(

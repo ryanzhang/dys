@@ -12,7 +12,7 @@ default_setting = {
     "postgres_database": "market",
     "log_level": "INFO",
     "log_output_path": "",
-    "data_folder": "/tmp/syd/cache",
+    "data_folder": "/tmp/strategy/cache",
 }
 # 设置默认值
 for (key, value) in default_setting.items():

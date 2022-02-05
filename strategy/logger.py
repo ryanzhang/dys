@@ -1,6 +1,6 @@
 import logging
 
-from syd.config import configs
+from strategy.config import configs
 
 level = configs["log_level"].data
 logging_level = {
