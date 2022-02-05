@@ -1,6 +1,6 @@
 # How to develop on this project
 
-syd welcomes contributions from the community.
+strategy welcomes contributions from the community.
 
 **You need PYTHON3!**
 
@@ -8,9 +8,9 @@ This instructions are for linux base systems. (Linux, MacOS, BSD, etc.)
 ## Setting up your own fork of this repo.
 
 - On github interface click on `Fork` button.
-- Clone your fork of this repo. `git clone git@github.com:YOUR_GIT_USERNAME/syd.git`
-- Enter the directory `cd syd`
-- Add upstream repo `git remote add upstream https://github.com/ryanzhang/syd`
+- Clone your fork of this repo. `git clone git@github.com:YOUR_GIT_USERNAME/strategy.git`
+- Enter the directory `cd strategy`
+- Add upstream repo `git remote add upstream https://github.com/ryanzhang/strategy`
 
 ## Setting up your own virtual environment
 

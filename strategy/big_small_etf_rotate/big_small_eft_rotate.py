@@ -34,7 +34,8 @@ def annual_return(date_line, capital_line):
     :param capital_line: 账户价值序列
     :return 输出在回测期间的年化收益率
     """
-    df = pd.D
+    # df = pd.D
+    pass
 
 
 # 沪深300 510300 2012-05-28

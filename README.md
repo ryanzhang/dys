@@ -1,7 +1,7 @@
-# syd -同步我的金融数据
+# strategy -同步我的金融数据
 
-[![codecov](https://codecov.io/gh/ryanzhang/syd/branch/main/graph/badge.svg?token=syd_token_here)](https://codecov.io/gh/ryanzhang/syd)
-[![CI](https://github.com/ryanzhang/syd/actions/workflows/main.yml/badge.svg)](https://github.com/ryanzhang/syd/actions/workflows/main.yml)
+[![codecov](https://codecov.io/gh/ryanzhang/strategy/branch/main/graph/badge.svg?token=strategy_token_here)](https://codecov.io/gh/ryanzhang/strategy)
+[![CI](https://github.com/ryanzhang/strategy/actions/workflows/main.yml/badge.svg)](https://github.com/ryanzhang/strategy/actions/workflows/main.yml)
 
 <!-- 找到缺失的数据, 并更新数据，数据来源是通达信，使用 mootdx -->
 
@@ -17,23 +17,23 @@
 ## Install it from PyPI
 
 ```bash
-pip install syd
+pip install strategy
 ```
 
 ## Usage
 
 ```py
-from syd import BaseClass
-from syd import base_function
+from strategy import BaseClass
+from strategy import base_function
 
 BaseClass().base_method()
 base_function()
 ```
 
 ```bash
-$ python -m syd
+$ python -m strategy
 #or
-$ syd
+$ strategy
 ```
 
 ## Development
