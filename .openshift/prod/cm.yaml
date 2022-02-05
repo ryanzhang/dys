@@ -1,0 +1,24 @@
+apiVersion: v1
+data:
+  app-config.properties: |
+    # 数据库地址
+    postgres_host=pg-quant-invest
+    postgres_port=5432
+    postgres_user=user
+    postgres_password=password
+    postgres_database=market
+
+    # token 1: 1860
+    tus_token=2840885933ecda6d41176bd967e549b590044f3ee8a910214b23ad72
+    #token 2: 1861
+    # ts.set_token('a7cdb32dce95207bb05e8fce6eb9124377c599508490e4538535f609')
+    #token 3: 1851
+    # ts.set_token('7fd86d168266ec8740bd13eb4f9f9b157b7c0c2a5609a8cfc4e5bdaa')
+
+    log_level=DEBUG
+    log_output_path=/app/syd/data/log/sys-app.log
+    cache_folder=/app/syd/data/cache/
+kind: ConfigMap
+metadata:
+  name: syd-main-config
+  namespace: quant-invest

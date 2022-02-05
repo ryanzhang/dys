@@ -1,0 +1,50 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  annotations:
+    image.openshift.io/triggers: "null"
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"batch/v1beta1","kind":"CronJob","metadata":{"annotations":{},"name":"syd","namespace":"quant-invest"},"spec":{"concurrencyPolicy":"Forbid","failedJobsHistoryLimit":1,"jobTemplate":{"spec":{"template":{"metadata":{"labels":{"parent":"cronjob"}},"spec":{"containers":[{"command":["syd"],"env":[{"name":"TZ","value":"Asia/Shanghai"}],"image":"syd:latest","name":"syd","resources":{"limits":{"memory":"1Gi"}},"volumeMounts":[{"mountPath":"/app/syd/data","name":"syd-data-volume"},{"mountPath":"/app/syd/resources/app-config.properties","name":"syd-properties-volume","readOnly":false,"subPath":"app-config.properties"}]}],"restartPolicy":"Never","volumes":[{"name":"syd-data-volume","persistentVolumeClaim":{"claimName":"syd-data"}},{"configMap":{"defaultMode":272,"name":"syd-main-config","optional":false},"name":"syd-properties-volume"}]}}}},"schedule":"* * * * *","startingDeadlineSeconds":600,"successfulJobsHistoryLimit":3,"suspend":false}}
+  name: syd
+  namespace: quant-invest
+spec:
+  schedule: "15 10 * * 1-5"
+  concurrencyPolicy: "Forbid"
+  startingDeadlineSeconds: 600
+  suspend: false
+  successfulJobsHistoryLimit: 9
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            parent: "cronjob"
+        spec:
+          containers:
+            - name: syd
+              image: image-registry.openshift-image-registry.svc:5000/quant-invest/syd:1.0.1-2
+              command: ["syd"]
+              env:
+              - name: TZ
+                value: Asia/Shanghai
+              resources:
+                limits:
+                  memory: 1Gi
+              volumeMounts:
+                - mountPath: /app/syd/data
+                  name: syd-data-volume
+                - mountPath: /app/syd/resources/app-config.properties
+                  subPath: app-config.properties
+                  readOnly: false
+                  name: syd-properties-volume
+          volumes:
+            - persistentVolumeClaim:
+                claimName: syd-data
+              name: syd-data-volume
+            - configMap:
+                name: syd-main-config
+                defaultMode: 272
+                optional: false
+              name: syd-properties-volume
+          restartPolicy: Never
