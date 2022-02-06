@@ -2,7 +2,6 @@
 import argparse  # pragma: no cover
 
 from strategy.logger import logger
-from strategy.stocksyncer import StockSyncer  # pragma: no cover
 
 from . import BaseClass, base_function  # pragma: no cover
 
@@ -50,7 +49,7 @@ def main() -> None:  # pragma: no cover
         # )
 
     logger.info("Executing main function")
-    ss = StockSyncer()
+    ss = ()
     ss.sync_trade_calendar()
     ss.sync_equity()
     ss.sync_mkt_equ_d()

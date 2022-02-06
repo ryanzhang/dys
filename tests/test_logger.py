@@ -1,4 +1,4 @@
-from strategy.logger import logger
+from kupy.logger import logger
 
 
 def test_logger():
