@@ -1,7 +1,9 @@
 # -*- coding: UTF-8 -*-
-import argparse  # pragma: no cover
+import argparse
+from datetime import date, datetime  # pragma: no cover
 
 from kupy.logger import logger
+from dys.big_small_eft_rotate import BigSmallEtfRotateStrategy
 
 # from . import BaseClass, base_function  # pragma: no cover
 
@@ -49,11 +51,12 @@ def main() -> None:  # pragma: no cover
         # )
 
     logger.info("Executing main function")
-    ss = ()
-    ss.sync_trade_calendar()
-    ss.sync_equity()
-    ss.sync_mkt_equ_d()
-    ss.sync_fund_day()
+    bsery = BigSmallEtfRotateStrategy(1)
+    # today=datetime.today()
+    today=date(2022,1,28)
+    df = bsery.get_strategy_by_date(today)
+    row_count = bsery.write_df_to_db(df)
+    logger.info(f"写入了{row_count}条{__file__}策略数据")
     logger.info("End of main function")
 
 
