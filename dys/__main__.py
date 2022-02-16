@@ -1,15 +1,15 @@
 # -*- coding: UTF-8 -*-
 import argparse  # pragma: no cover
 
-from strategy.logger import logger
+from kupy.logger import logger
 
-from . import BaseClass, base_function  # pragma: no cover
+# from . import BaseClass, base_function  # pragma: no cover
 
 
 def main() -> None:  # pragma: no cover
     """
     The main function executes on commands:
-    `python -m strategy` and `$ strategy `.
+    `python -m dys` and `$ dys `.
 
     This is your program's entry point.
 
@@ -23,8 +23,8 @@ def main() -> None:  # pragma: no cover
         * Run an application (Flask, FastAPI, Django, etc.)
     """
     parser = argparse.ArgumentParser(
-        description="strategy 同步我的金融数据库",
-        epilog="Enjoy the strategy functionality!",
+        description="dys big_small_etf_rotate strategy",
+        epilog="Enjoy the dys functionality!",
     )
     # # This is required positional argument
     # parser.add_argument(

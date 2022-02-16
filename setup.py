@@ -1,4 +1,4 @@
-"""Python setup.py for strategy package"""
+"""Python setup.py for dys package"""
 import io
 import os
 from setuptools import find_packages, setup
@@ -6,7 +6,7 @@ from setuptools import find_packages, setup
 
 def read(*paths, **kwargs):
     """Read the contents of a text file safely.
-    >>> read("strategy", "VERSION")
+    >>> read("dys", "VERSION")
     '0.1.0'
     >>> read("README.md")
     ...
@@ -30,17 +30,17 @@ def read_requirements(path):
 
 
 setup(
-    name="strategy",
-    version=read("strategy", "VERSION"),
-    description="Awesome strategy created by ryanzhang",
-    url="https://github.com/ryanzhang/strategy/",
+    name="dys",
+    version=read("dys", "VERSION"),
+    description="Awesome dys created by ryanzhang",
+    url="https://github.com/ryanzhang/dys/",
     long_description=read("README.md"),
     long_description_content_type="text/markdown",
     author="ryanzhang",
     packages=find_packages(exclude=["tests", ".github"]),
     install_requires=read_requirements("requirements.txt"),
     entry_points={
-        "console_scripts": ["strategy = strategy.__main__:main"]
+        "console_scripts": ["dys = dys.__main__:main"]
     },
     extras_require={"test": read_requirements("requirements-test.txt")},
 )

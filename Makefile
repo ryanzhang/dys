@@ -13,7 +13,7 @@ help:             ## Show the help.
 .PHONY: show
 show:             ## Show the current environment.
 	@echo "Current environment:"
-	@if [ "$(USING_POETRY)" ]; then poetry env info && exit; fi
+	@if [ "$(USING_POETRY)" ]; then poetry env info && exit; i
 	@echo "Running using $(ENV_PREFIX)"
 	@$(ENV_PREFIX)python -V
 	@$(ENV_PREFIX)python -m site
@@ -26,20 +26,20 @@ install:          ## Install the project in dev mode.
 
 .PHONY: fmt
 fmt:              ## Format code using black & isort.
-	$(ENV_PREFIX)isort strategy/
-	$(ENV_PREFIX)black -l 79 strategy/
+	$(ENV_PREFIX)isort dys
+	$(ENV_PREFIX)black -l 79 dys
 	$(ENV_PREFIX)black -l 79 tests/
 
 .PHONY: lint
 lint:             ## Run pep8, black, mypy linters.
-	$(ENV_PREFIX)flake8 strategy/
-	$(ENV_PREFIX)black -l 79 --check strategy/
+	$(ENV_PREFIX)flake8 dys
+	$(ENV_PREFIX)black -l 79 --check dys
 	$(ENV_PREFIX)black -l 79 --check tests/
-	$(ENV_PREFIX)mypy --ignore-missing-imports strategy/
+	$(ENV_PREFIX)mypy --ignore-missing-imports dys
 
 .PHONY: test
 test: lint        ## Run tests and generate coverage report.
-	$(ENV_PREFIX)pytest -v --cov-config .coveragerc --cov=strategy -l --tb=short --maxfail=1 tests/
+	$(ENV_PREFIX)pytest -v --cov-config .coveragerc --cov=dys -l --tb=short --maxfail=1 tests/
 	$(ENV_PREFIX)coverage xml
 	$(ENV_PREFIX)coverage html
 
@@ -49,19 +49,19 @@ watch:            ## Run tests on every change.
 
 .PHONY: clean
 clean:            ## Clean unused files.
-	@find ./ -name '*.pyc' -exec rm -f {} \;
-	@find ./ -name '__pycache__' -exec rm -rf {} \;
-	@find ./ -name 'Thumbs.db' -exec rm -f {} \;
-	@find ./ -name '*~' -exec rm -f {} \;
-	@rm -rf .cache
-	@rm -rf .pytest_cache
-	@rm -rf .mypy_cache
-	@rm -rf build
-	@rm -rf dist
-	@rm -rf *.egg-info
-	@rm -rf htmlcov
-	@rm -rf .tox/
-	@rm -rf docs/_build
+	-find ./ -name '*.pyc' -exec rm -f {} \;
+	-find ./ -name '__pycache__' -exec rm -rf {} \;
+	-find ./ -name 'Thumbs.db' -exec rm -f {} \;
+	-find ./ -name '*~' -exec rm -f {} \;
+	-rm -rf .cache
+	-rm -rf .pytest_cache
+	-rm -rf .mypy_cache
+	-rm -rf build
+	-rm -rf dist
+	-rm -rf *.egg-info
+	-rm -rf htmlcov
+	-rm -rf .tox/
+	-rm -rf docs/_build
 
 .PHONY: virtualenv
 virtualenv:       ## Create a virtual environment.
@@ -78,9 +78,9 @@ virtualenv:       ## Create a virtual environment.
 release:          ## Create a new tag for release.
 	@echo "WARNING: This operation will create s version tag and push to github"
 	@read -p "Version? (provide the next x.y.z semver) : " TAG
-	@echo "$${TAG}" > strategy/VERSION
+	@echo "$${TAG}" > dysVERSION
 	@$(ENV_PREFIX)gitchangelog > HISTORY.md
-	@git add strategy/VERSION HISTORY.md
+	@git add dysVERSION HISTORY.md
 	@git commit -m "release: version $${TAG} 🚀"
 	@echo "creating git tag : $${TAG}"
 	@git tag $${TAG}
@@ -101,7 +101,7 @@ switch-to-poetry: ## Switch to poetry package manager.
 	@poetry init --no-interaction --name=a_flask_test --author=rochacbruno
 	@echo "" >> pyproject.toml
 	@echo "[tool.poetry.scripts]" >> pyproject.toml
-	@echo "strategy = 'strategy.__main__:main'" >> pyproject.toml
+	@echo "dys = 'dys.__main__:main'" >> pyproject.toml
 	@cat requirements.txt | while read in; do poetry add --no-interaction "$${in}"; done
 	@cat requirements-test.txt | while read in; do poetry add --no-interaction "$${in}" --dev; done
 	@poetry install --no-interaction
@@ -109,7 +109,7 @@ switch-to-poetry: ## Switch to poetry package manager.
 	@mv requirements* .github/backup
 	@mv setup.py .github/backup
 	@echo "You have switched to https://python-poetry.org/ package manager."
-	@echo "Please run 'poetry shell' or 'poetry run strategy'"
+	@echo "Please run 'poetry shell' or 'poetry run dys'"
 
 .PHONY: init
 init:             ## Initialize the project based on an application template.
@@ -129,13 +129,13 @@ sdist:
 .PHONY: image
 image:
 	@read -p "Version? (provide the next x.y.z version,Suggest projectversion-buildtag, eg: 0.0.1-1) : " TAG
-	https_prox=http://192.168.2.15:3128 podman build -f Containerfile . -t default-route-openshift-image-registry.apps.ocp1.galaxy.io/classic-dev/strategy:$${TAG}	
+	https_prox=http://192.168.2.15:3128 podman build -f Containerfile . -t default-route-openshift-image-registry.apps.ocp1.galaxy.io/classic-dev/dys:$${TAG}	
 
 .PHONY: image
 deploy:
 	@read -p "Version? (provide the next x.y.z version,Suggest projectversion-buildtag, eg: 0.0.1-1) : " TAG
-	https_prox=http://192.168.2.15:3128 podman build -f Containerfile . -t default-route-openshift-image-registry.apps.ocp1.galaxy.io/classic-dev/strategy:$${TAG}	
-	podman push default-route-openshift-image-registry.apps.ocp1.galaxy.io/classic-dev/strategy:$${TAG} --tls-verify=false
+	https_prox=http://192.168.2.15:3128 podman build -f Containerfile . -t default-route-openshift-image-registry.apps.ocp1.galaxy.io/classic-dev/dys:$${TAG}	
+	podman push default-route-openshift-image-registry.apps.ocp1.galaxy.io/classic-dev/dys:$${TAG} --tls-verify=false
 
 # This project has been generated from ryanzhang/python-project-template which is forked from 
 # rochacbruno/python-project-template

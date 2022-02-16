@@ -1,7 +1,7 @@
-# strategy -同步我的金融数据
+# dys -同步我的金融数据
 
-[![codecov](https://codecov.io/gh/ryanzhang/strategy/branch/main/graph/badge.svg?token=strategy_token_here)](https://codecov.io/gh/ryanzhang/strategy)
-[![CI](https://github.com/ryanzhang/strategy/actions/workflows/main.yml/badge.svg)](https://github.com/ryanzhang/strategy/actions/workflows/main.yml)
+[![codecov](https://codecov.io/gh/ryanzhang/dys/branch/main/graph/badge.svg?token=dys_token_here)](https://codecov.io/gh/ryanzhang/dys)
+[![CI](https://github.com/ryanzhang/dys/actions/workflows/main.yml/badge.svg)](https://github.com/ryanzhang/dys/actions/workflows/main.yml)
 
 <!-- 找到缺失的数据, 并更新数据，数据来源是通达信，使用 mootdx -->
 
@@ -17,23 +17,23 @@
 ## Install it from PyPI
 
 ```bash
-pip install strategy
+pip install dys
 ```
 
 ## Usage
 
 ```py
-from strategy import BaseClass
-from strategy import base_function
+from dys import BaseClass
+from dys import base_function
 
 BaseClass().base_method()
 base_function()
 ```
 
 ```bash
-$ python -m strategy
+$ python -m dys
 #or
-$ strategy
+$ dys
 ```
 
 ## Development

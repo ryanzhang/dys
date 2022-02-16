@@ -9,4 +9,3 @@ def test_properties_been_load():
     assert configs.get("postgres_database").data == "market"
     assert configs.get("log_level").data != ""
     assert configs.get("something_not_exists") is None
-    assert configs["bser_strategy_suspend"].data=="False"
