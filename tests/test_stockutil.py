@@ -4,7 +4,6 @@ import math
 import pytest
 from kupy.dbadaptor import DBAdaptor
 from kupy.logger import logger
-from dys.big_small_eft_rotate import BigSmallEtfRotateStrategy
 from dys.stockutil import *
 import os
 
@@ -13,6 +12,7 @@ skipif = pytest.mark.skipif
 skip = pytest.mark.skip
 xfail = pytest.mark.xfail
 
+@skip
 class TestStockUtil:
     @pytest.fixture(scope="class")
     def util(self):
