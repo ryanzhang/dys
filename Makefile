@@ -76,15 +76,18 @@ virtualenv:       ## Create a virtual environment.
 
 .PHONY: release
 release:          ## Create a new tag for release.
-	@echo "WARNING: This operation will create s version tag and push to github"
-	@read -p "Version? (provide the next x.y.z semver) : " TAG
-	@echo "$${TAG}" > dysVERSION
 	@$(ENV_PREFIX)gitchangelog > HISTORY.md
-	@git add dysVERSION HISTORY.md
-	@git commit -m "release: version $${TAG} 🚀"
-	@echo "creating git tag : $${TAG}"
-	@git tag $${TAG}
+	@TAG=$(shell cat kupy/VERSION|sed "s/.1dev//");\
+	sed -i "s=unreleased=$${TAG}=g" HISTORY.md||True;\
+	git add dys/VERSION HISTORY.md;\
+	git commit -m "release: version $${TAG} 🚀";\
+	echo "creating git tag : v$${TAG}";\
+	git tag v$${TAG} ;\
+	echo $${TAG}.1dev > kupy/VERSION;\
+	git add dys/VERSION;\
+	git commit -m "Pump version up $${TAG}.dev";
 	@git push -u origin HEAD --tags
+	@git push -u origin HEAD 
 	@echo "Github Actions will detect the new tag and release the new version."
 
 .PHONY: docs
@@ -115,27 +118,22 @@ switch-to-poetry: ## Switch to poetry package manager.
 init:             ## Initialize the project based on an application template.
 	@./.github/init.sh
 
-.PHONY: testdist
+.PHONY: testdist stagedeploy systest sdist
+sdist: clean test testdist systest
+
 testdist: clean
 	python setup.py sdist bdist_wheel
-	twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+	twine upload -r pypitest dist/*
 
-.PHONY: sdist
-sdist:
-	twine upload dist/*
+systest:
+	@echo  "Wait 30s for pypitest to synchronize!"
+	@sleep 30
+	cd systest && make test
 
-# Make container image by podman
-#You would need podman for this
-.PHONY: image
-image:
-	@read -p "Version? (provide the next x.y.z version,Suggest projectversion-buildtag, eg: 0.0.1-1) : " TAG
-	https_prox=http://192.168.2.15:3128 podman build -f Containerfile . -t default-route-openshift-image-registry.apps.ocp1.galaxy.io/classic-dev/dys:$${TAG}	
-
-.PHONY: image
-deploy:
-	@read -p "Version? (provide the next x.y.z version,Suggest projectversion-buildtag, eg: 0.0.1-1) : " TAG
-	https_prox=http://192.168.2.15:3128 podman build -f Containerfile . -t default-route-openshift-image-registry.apps.ocp1.galaxy.io/classic-dev/dys:$${TAG}	
-	podman push default-route-openshift-image-registry.apps.ocp1.galaxy.io/classic-dev/dys:$${TAG} --tls-verify=false
+.PHONY: dist
+dist: release
+	python setup.py sdist bdist_wheel
+	twine upload -r pypi dist/*
 
 # This project has been generated from ryanzhang/python-project-template which is forked from 
 # rochacbruno/python-project-template
