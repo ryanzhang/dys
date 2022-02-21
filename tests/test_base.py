@@ -1,20 +1,39 @@
-import pytest
 
-from dys import BaseClass, base_function
+from datetime import date, datetime, timedelta
+from importlib import invalidate_caches
+import math
+import pytest
+from kupy.dbadaptor import DBAdaptor
+from kupy.logger import logger
+
+from dys.base import Base
+
 
 given = pytest.mark.parametrize
+skipif = pytest.mark.skipif
+skip = pytest.mark.skip
+xfail = pytest.mark.xfail
 
+class MyStrategy(Base):
+    def __init__(self):
+        Base.__init__(self)
+        logger.debug("Construct MyStrategy") 
+        pass
+    
 
-@given("fn", [BaseClass(), base_function])
-def test_parameterized(fn):
-    # print(fn)
-    assert "hello from" in fn()
+class TestBase:
+    @pytest.fixture(scope="class")
+    def db(self):
+        pass
+    
 
-
-def test_base_function():
-    assert base_function() == "hello from base function"
-
-
-def test_base_class():
-    assert BaseClass().base_method() == "hello from BaseClass"
-    assert not not True
+    @pytest.fixture(autouse=True)
+    def setup_teamdown(self):
+        logger.info("TestCase Level Setup is triggered!")
+        yield
+        logger.info("TestCase Level Tear Down is triggered!")
+        
+    def test_using_base_construct_ok(self, db:DBAdaptor):
+        ms = MyStrategy()
+        pass
+    

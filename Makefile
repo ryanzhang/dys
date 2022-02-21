@@ -116,7 +116,7 @@ init:             ## Initialize the project based on an application template.
 	@./.github/init.sh
 
 .PHONY: testdist
-testdist:
+testdist: clean
 	python setup.py sdist bdist_wheel
 	twine upload --repository-url https://test.pypi.org/legacy/ dist/*
 

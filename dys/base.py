@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 """
-kupy base module.
+dys base module.
 
 This is the principal module of the kupy project.
 here you put your main classes and objects.
@@ -15,19 +15,20 @@ and then choose `flask` as template.
 """
 
 
-class BaseClass:
+from kupy.logger import logger
+
+
+class Base:
+    def __init__(self):
+        logger.info("Construct dys Base")
+        pass
+
     def base_method(self) -> str:
         """
         Base method.
         """
-        return "hello from BaseClass"
+        return "hello from dys Base Class"
 
     def __call__(self) -> str:
         return self.base_method()
 
-
-def base_function() -> str:
-    """
-    Base function.
-    """
-    return "hello from base function"
