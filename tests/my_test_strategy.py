@@ -53,10 +53,12 @@ class MyStrategy(BaseStrategy):
         self.select_equ_condition = query_str
         logger.debug(f"选股条件已经设置完毕{query_str}")
         return True
-    
+
     def post_hook_select_equ(self):
         self.df_choice_equd.dropna(inplace=True)
-        logger.debug(f"post hook after 选股 has been triggered {self.df_choice_equd.shape[0]}!")
+        logger.debug(
+            f"post hook after 选股 has been triggered {self.df_choice_equd.shape[0]}!"
+        )
         pass
 
     def set_rank_factors(self, rankfactors: list) -> bool:

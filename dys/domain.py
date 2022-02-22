@@ -1,6 +1,6 @@
 from typing import Any, Callable
-import pandas as pd
 
+import pandas as pd
 from sqlalchemy import Column, DateTime, Float, Integer, Sequence, String
 from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
 
@@ -10,7 +10,7 @@ Base: DeclarativeMeta = declarative_base()
 class RankFactor:
     def __init__(
         self,
-        name: str ,
+        name: str,
         bigfirst: bool = True,
         weight: int = 1,
     ):
@@ -24,21 +24,44 @@ class SelectMetric:
         if name == "":
             raise Exception("指标名称不能为空")
         self.name = name
-        self.apply:Callable[[pd.DataFrame,tuple], pd.Series] = func
+        self.apply: Callable[[pd.DataFrame, tuple], pd.Series] = func
         self.args = args
 
 
 class TradeModel:
-    def __init__(self, rebal_period, rebal_timing, mmf_enable, new_pos_target_pct, cash_pct):
+    def __init__(
+        self,
+        rebal_period,
+        rebal_timing,
+        mmf_enable,
+        new_pos_target_pct,
+        cash_pct,
+        bench_num,
+    ):
         # 调仓周期
-        self.rebal_period:int = rebal_period
+        self.rebal_period: int = rebal_period
         # 调仓时间
-        self.rebal_timing:int  = rebal_timing # 0 开盘， 1 收盘， 2 日均价
-        self.mmf_enable:bool = mmf_enable
+        self.rebal_timing: int = rebal_timing  # 0 开盘， 1 收盘， 2 日均价
+        self.mmf_enable: bool = mmf_enable
         self.new_pos_target_pct = new_pos_target_pct
         self.cash_pct = cash_pct
+        #备选股票数量
+        self.bench_num = bench_num
+        self.buy_criterial:Callable = None
+        self.sale_criterial:Callable = None
+        self.notsale_criterial:Callable = None
+    
+    def set_buy_criterial(self, shd_buy, *args):
+        self.buy_criterial:Callable = shd_buy
         pass
 
+    def set_sale_criterial(self, shd_sale, *args):
+        self.sale_criterial:Callable = shd_sale
+        pass
+
+    def set_notsale_criterial(self, shdnot_sale, *args):
+        self.notsale_criterial:Callable = shdnot_sale
+        pass
 
 class StrategyAccount(Base):
     __tablename__ = "strategy_account"

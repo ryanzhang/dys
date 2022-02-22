@@ -17,7 +17,7 @@ skip = pytest.mark.skip
 xfail = pytest.mark.xfail
 
 
-class TestBase:
+class TestDomains:
     @pytest.fixture(autouse=True)
     def setup_teamdown(self):
         logger.info("TestCase Level Setup is triggered!")

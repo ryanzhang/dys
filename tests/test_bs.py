@@ -16,7 +16,7 @@ skip = pytest.mark.skip
 xfail = pytest.mark.xfail
 
 
-class TestBase:
+class TestBaseStrategy:
     @pytest.fixture(scope="class")
     def db(self):
         return DBAdaptor()
@@ -87,7 +87,7 @@ class TestBase:
     def test__add_metric_column(self, ms: MyStrategy, db: DBAdaptor):
         ms.set_equ_pool()
         ms.set_equd_pool()
-        ms._BaseStrategy__select_equd_by_date(date(2021,1,4))
+        ms._BaseStrategy__select_equd_by_date(date(2021, 1, 4))
         ms.append_metric(SelectMetric("mom20", m.momentum, 20, "close_price"))
 
         ms._BaseStrategy__add_metric_column()
@@ -96,21 +96,21 @@ class TestBase:
         logger.debug(df.columns)
         logger.debug(df)
         pass
-    
-    def test_select_equ_by_expression(self, ms:MyStrategy):
+
+    def test_select_equ_by_expression(self, ms: MyStrategy):
         ms.set_equ_pool()
         ms.set_equd_pool()
-        ms._BaseStrategy__select_equd_by_date(date(2021,1,4))
+        ms._BaseStrategy__select_equd_by_date(date(2021, 1, 4))
         # ms.append_metric(SelectMetric("mom20", m.momentum, 20, "close_price"))
         ms.set_select_equ_condition("close_price < 20")
         df = ms._BaseStrategy__select_equd_by_expression()
         assert df is not None
-        logger.debug(df[['trade_date', 'ticker', 'close_price']])
+        logger.debug(df[["trade_date", "ticker", "close_price"]])
 
-    def test_ranking_1_factor(self, ms:MyStrategy):
+    def test_ranking_1_factor(self, ms: MyStrategy):
         ms.set_equ_pool()
         ms.set_equd_pool()
-        ms._BaseStrategy__select_equd_by_date(date(2022,1,4))
+        ms._BaseStrategy__select_equd_by_date(date(2022, 1, 4))
         ms.append_metric(SelectMetric("mom20", m.momentum, 20, "close_price"))
 
         ms._BaseStrategy__add_metric_column()
@@ -121,62 +121,100 @@ class TestBase:
         assert "mom20_subrank" in df.columns
         df.to_csv("/tmp/test_ranking.csv")
         logger.debug(df.columns)
-        logger.debug(df[['trade_date', 'ticker','mom20', 'rank', 'mom20_subrank']])        
+        logger.debug(
+            df[["trade_date", "ticker", "mom20", "rank", "mom20_subrank"]]
+        )
 
-    def test_ranking_1_factor_small_first(self, ms:MyStrategy):
+    def test_ranking_1_factor_small_first(self, ms: MyStrategy):
         ms.set_equ_pool()
         ms.set_equd_pool()
-        ms._BaseStrategy__select_equd_by_date(date(2022,1,4))
+        ms._BaseStrategy__select_equd_by_date(date(2022, 1, 4))
 
-        ms.append_rankfactor(RankFactor(name="close_price", bigfirst = False, weight=1))
+        ms.append_rankfactor(
+            RankFactor(name="close_price", bigfirst=False, weight=1)
+        )
         ms.post_hook_select_equ()
         df = ms.rank()
         assert "rank" in df.columns
         assert "close_price_subrank" in df.columns
         df.to_csv("/tmp/test_ranking.csv")
         logger.debug(df.columns)
-        logger.debug(df[['trade_date', 'ticker','close_price', 'rank', 'close_price_subrank']])        
+        logger.debug(
+            df[
+                [
+                    "trade_date",
+                    "ticker",
+                    "close_price",
+                    "rank",
+                    "close_price_subrank",
+                ]
+            ]
+        )
 
-    def test_ranking_2_factor(self, ms:MyStrategy):
+    def test_ranking_2_factor(self, ms: MyStrategy):
         ms.set_equ_pool()
         ms.set_equd_pool()
         ms.set_select_equ_condition("close_price<20")
-        ms._BaseStrategy__select_equd_by_date(date(2022,1,4))
+        ms._BaseStrategy__select_equd_by_date(date(2022, 1, 4))
         ms.append_metric(SelectMetric("mom20", m.momentum, 20, "close_price"))
         ms._BaseStrategy__add_metric_column()
         ms.post_hook_select_equ()
         ms._BaseStrategy__select_equd_by_expression()
 
-        #由大到小排列
+        # 由大到小排列
         ms.append_rankfactor(RankFactor(name="mom20", weight=2))
-        #由小到大
-        ms.append_rankfactor(RankFactor(name="close_price", bigfirst = False, weight=1))
+        # 由小到大
+        ms.append_rankfactor(
+            RankFactor(name="close_price", bigfirst=False, weight=1)
+        )
         df = ms.rank()
         assert "rank" in df.columns
         assert "mom20_subrank" in df.columns
         df.to_csv("/tmp/test_ranking.csv")
-        logger.debug(df[['trade_date', 'ticker',   'close_price_subrank', 'mom20_subrank', 'rank']])        
+        logger.debug(
+            df[
+                [
+                    "trade_date",
+                    "ticker",
+                    "close_price_subrank",
+                    "mom20_subrank",
+                    "rank",
+                ]
+            ]
+        )
 
-    def test_generate_trade_mfst(self, my:MyStrategy):
-        my
-    def test_roi_mfst(self, ms:MyStrategy):
+    def test_generate_trade_mfst(self, my: MyStrategy):
+        mfst = my.generate_trade_mfst()
+
+    def test_roi_mfst(self, ms: MyStrategy):
 
         ms.set_equ_pool()
         ms.set_equd_pool()
         ms.set_select_equ_condition("close_price<20")
-        ms._BaseStrategy__select_equd_by_date(date(2022,1,4))
+        ms._BaseStrategy__select_equd_by_date(date(2022, 1, 4))
         ms.append_metric(SelectMetric("mom20", m.momentum, 20, "close_price"))
         ms._BaseStrategy__add_metric_column()
         ms.post_hook_select_equ()
         ms._BaseStrategy__select_equd_by_expression()
 
-        #由大到小排列
+        # 由大到小排列
         ms.append_rankfactor(RankFactor(name="mom20", weight=2))
-        #由小到大
-        ms.append_rankfactor(RankFactor(name="close_price", bigfirst = False, weight=1))
+        # 由小到大
+        ms.append_rankfactor(
+            RankFactor(name="close_price", bigfirst=False, weight=1)
+        )
         df = ms.rank()
         assert "rank" in df.columns
         assert "mom20_subrank" in df.columns
         df.to_csv("/tmp/test_ranking.csv")
-        logger.debug(df[['trade_date', 'ticker',   'close_price_subrank', 'mom20_subrank', 'rank']])        
-
+        logger.debug(
+            df[
+                [
+                    "trade_date",
+                    "ticker",
+                    "close_price_subrank",
+                    "mom20_subrank",
+                    "rank",
+                ]
+            ]
+        )
