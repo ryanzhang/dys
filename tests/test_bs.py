@@ -97,6 +97,19 @@ class TestBaseStrategy:
         logger.debug(df)
         pass
 
+    def test__add_metric_column_bias(self, ms: MyStrategy, db: DBAdaptor):
+        ms.set_equ_pool()
+        ms.set_equd_pool()
+        ms._BaseStrategy__select_equd_by_date(date(2022, 1, 4))
+        ms.append_metric(SelectMetric("bias", m.bias, 6))
+
+        ms._BaseStrategy__add_metric_column()
+        df = ms.df_choice_equd
+        df.to_csv("/tmp/test__add_metric_column_bias.csv")
+        assert "bias" in df.columns
+        logger.debug(df[['trade_date','ticker','bias']])
+        pass
+
     def test_select_equ_by_expression(self, ms: MyStrategy):
         ms.set_equ_pool()
         ms.set_equd_pool()

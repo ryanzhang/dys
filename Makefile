@@ -132,7 +132,7 @@ systest:
 
 .PHONY: dist
 dist: release
-	python setup.py sdist bdist_wheel
+	# python setup.py sdist bdist_wheel
 	twine upload -r pypi dist/*
 
 # This project has been generated from ryanzhang/python-project-template which is forked from 

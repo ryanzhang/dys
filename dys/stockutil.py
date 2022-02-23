@@ -2,6 +2,14 @@ from datetime import datetime, timedelta
 
 from kupy.dbadaptor import DBAdaptor
 
+def existedBefore(g,N=90):
+    # if the difference between the max and min placed_at values is less than 90 days
+    # then return False.  Otherwise, return True
+    # if the group only has 1 row, then max and min are the same
+    # so this check still works
+    if g.trade_date.max() - g.trade_date.min() >= datetime.timedelta(N):
+        return True
+    return False
 
 class StockUtil:
     def __init__(self):
