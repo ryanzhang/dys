@@ -57,11 +57,17 @@ class m(object):
             raise Exception(
                 "list_days指标需要一个参数:1. 股票上市日期dataframe，含ticker,list_date两个列"
             )
-        df_equ_list_info = args[0]
+        df_equ_list_info :pd.DataFrame = args[0]
+
         df_equ_list_info = df_equ_list_info[
-            ["ticker", "list_date", "list_status_cd"]
+            ["ticker", "list_date"]
         ]
-        df = pd.merge(df, df_equ_list_info, on="ticker", how="left")
+        df_equ_list_info.set_index('ticker', inplace=True)
+        # df = pd.merge(df, df_equ_list_info, on="ticker", how="left")
+
+        # df['list_date'] = df['ticker'].apply(m.__add_list_date_col, args=(df_equ_list_info,))
+        list_date_dict =df_equ_list_info.to_dict().get('list_date')
+        df['list_date'] = df['ticker'].map(list_date_dict)
 
         variant = df[df["list_date"].isna()]
         if variant.shape[0] > 0:
@@ -72,7 +78,7 @@ class m(object):
                 f"发现找不到上市天数的股票{variant['ticker']} 有问题的数据保存到:{variant_export_file}"
             )
 
-        df["list_days"] = (df["trade_date"] - df["list_date"]).dt.days
+        df["list_days"] = (df["trade_date"] - df["list_date"]).dt.days + 1
         return df["list_days"]
 
     def __alpha(x):
@@ -91,7 +97,7 @@ class m(object):
             pd.Series: _description_
         """
 
-        df = df.groupby("trade_date").apply(m.__alpha)
+        df = df.groupby("ticker").apply(m.__alpha)
         ds = df["alpha16"]
         logger.debug(f"已调用Alpha016 数列")
         return ds
@@ -113,8 +119,10 @@ class m(object):
         except Exception as e:
             spot_df = configs["data_folder"].data + "_neutralize_error.csv"
             # x.to_csv(spot_df)
-            logger.error(f"中性化指标时候出错 Exception:{e}, col_name:{col_name} dataframe:{x}")
-            logger.error(traceback.format_exc())
+            logger.error(f"中性化指标时候出错 Exception:{e}, col_name{col_name}")
+            #Trace only
+            # logger.error(traceback.format_exc())
+            # logger.debug(f"中性化指标时候出错 Exception:{e}, col_name:{col_name} dataframe:{x}")
         return x
 
     def ntra_turnover_rate(df: pd.DataFrame, args) -> pd.Series:
@@ -128,9 +136,12 @@ class m(object):
         Returns:
             pd.Series: _description_
         """
+        if len(args) != 1:
+            raise Exception(
+                "list_days指标需要一个参数:1.N 日" 
+            )
         N = args[0]
         col_name=f'MA{N}_turnover_rate'
-        # df[col_name]=df['turnover_rate']
         df = df.groupby("ticker").apply(m.__MA, N, "turnover_rate")
         df[col_name].fillna(df.iat[N-1,df.shape[1]-1], inplace=True)
         # df[col_name].fillna(0, inplace=True)
@@ -150,7 +161,15 @@ class m(object):
         Returns:
             pd.Series: _description_
         """
-        df = df.groupby("trade_date").apply(m.__neutralize, "bias")
+        if len(args) != 1:
+            raise Exception(
+                "list_days指标需要一个参数:1.N 日" 
+            )
+        N = args[0]
+        col_name=f'MA{N}_bias'
+        df[col_name] = m.bias(df, [N])
+        df[col_name].fillna(df.iat[N-1,df.shape[1]-1], inplace=True)
+        df = df.groupby("trade_date").apply(m.__neutralize, col_name)
         ds = df["ntra_metric"]
         return ds
 
@@ -188,16 +207,30 @@ class m(object):
         Returns:
             pd.DataFrame: 返回求和列名为SUM{N}_{col_name}
         """
-        x[f"SUM{N}_{col_name}"] = x[col_name].rolling(N).sum()
+        x[f"SUM{N}_{col_name}"] = x[col_name].rolling(N, min_periods=1).sum()
         return x
+
+    def __(x, y: pd.DataFrame):
+        d = y.loc[y.ticker == x,'list_date'].iloc[0]
+        logger.debug(f"{x} {d} ")
+        return d
 
     def __calc_float_num(
         df: pd.DataFrame, N: int, df_float: pd.DataFrame
     ) -> pd.DataFrame:
         fnN = f"SUM{N}_float_num"
         df_float = df_float[["ticker", "float_date", "float_num"]]
-        df_float["trade_date"] = df_float["float_date"]
-        df = pd.merge(df, df_float, on=["ticker", "trade_date"], how="left")
+        # df_float['ticker'] = df_float['ticker'].astype('string')
+        # df_float['float_date'] = pd.to_datetime(df_float['float_date'])
+        df_float.set_index(['ticker', 'float_date'], inplace=True)
+        # df = pd.merge(df, df_float, on=["ticker", "trade_date"], how="left")
+        df['ticker']=df['ticker'].astype('string')
+        # df.groupby(['ticker','trade_date'])[''].map
+        # df['trade_date'] = pd.to_datetime(df['trade_date'])
+        df["float_num"]=df[['ticker', 'trade_date']].apply(tuple, axis=1)
+        float_num_dict = df_float.to_dict().get('float_num')
+        df['float_num'] = df['float_num'].map(float_num_dict)
+        df['float_num'].fillna(0,inplace=True)
         # df.to_csv("/tmp/metric_float_rate_origin.csv")
         df = (
             df.sort_values("trade_date", ascending=False)
@@ -311,9 +344,9 @@ class m(object):
             raise Exception("N/M日量比指标需要两个参数:1. N天数,2 M天数")
         N = args[0]
         M = args[1]
-        df = df.groupby("ticker").apply(m.__MA, N, "vol")
-        df = df.groupby("ticker").apply(m.__MA, M, "vol")
-        ds = df[f"MA{N}_vol"] / df[f"MA{M}_vol"]
+        df = df.groupby("ticker").apply(m.__MA, N, "turnover_vol")
+        df = df.groupby("ticker").apply(m.__MA, M, "turnover_vol")
+        ds = df[f"MA{N}_turnover_vol"] / df[f"MA{M}_turnover_vol"]
         return ds
 
     def sum_chg_pct(df: pd.DataFrame, args) -> pd.DataFrame:
@@ -344,4 +377,21 @@ class m(object):
         N = args[0]
         df = df.groupby("ticker").apply(m.__MA, N, "turnover_rate")
         return df[f"MA{N}_turnover_rate"]
+
+    def ma_vol(df: pd.DataFrame, args) -> pd.DataFrame:
+        """N日平均换手率 包含当前日
+
+        Args:
+            df (pd.DataFrame): _description_
+            args (_type_): _description_
+            1. N日区间
+
+        Returns:
+            pd.DataFrame: _description_
+        """
+        N = args[0]
+        df = df.groupby("ticker").apply(m.__MA, N, "turnover_vol")
+        return df[f"MA{N}_turnover_vol"]
+
+
 

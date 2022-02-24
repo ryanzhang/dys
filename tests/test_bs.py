@@ -115,6 +115,13 @@ class TestBaseStrategy:
         df = ms._BaseStrategy__select_equd_by_expression()
         assert df is not None
         logger.debug(df[["trade_date", "ticker", "close_price"]])
+    
+    def test_set_date(self, ms:MyStrategy):
+        ms.set_equ_pool()
+        ms.set_equd_pool()
+        ms.set_margin_offset(5)
+        df = ms.set_date(date(2017,1,4))
+        logger.debug(df)
 
     def test_ranking_1_factor(self, ms: MyStrategy):
         ms.set_equ_pool()

@@ -16,7 +16,7 @@ and then choose `flask` as template.
 
 
 from datetime import date
-from typing import Any, Callable, Iterable, List
+from typing import Any, Iterable, List
 
 import pandas as pd
 from kupy.config import configs
@@ -24,6 +24,7 @@ from kupy.dbadaptor import DBAdaptor
 from kupy.logger import logger
 
 from dys.domain import RankFactor, SelectMetric, TradeModel
+from dys.stockutil import StockUtil
 
 
 class BaseStrategy:
@@ -47,15 +48,27 @@ class BaseStrategy:
         # 每日择股
         self.df_choice_equd = None
 
-    def load_default_pool(self):
+        # 根据添加的指标滚动窗口，记录最大向前滚动的时间窗口 以保证边缘日期的均值计算问题
+        self.margin_offset = 0
+        self.start_date = None
+        self.end_date = None
+
+    def default_load_pool(self) ->pd.DataFrame:
         if self.df_equ_pool is None:
             self.load_all_equ()
         if self.df_equd_pool is None:
             self.load_all_equd()
 
-        df = self.df_equd_pool
+        if self.df_choice_equd is not None:
+            df = self.df_choice_equd
+            pass
+        else:
+            df = self.df_equd_pool
+
         df = df[df["ticker"].isin(self.df_equ_pool["ticker"])]
         self.df_choice_equd=df
+        logger.debug(f"K线数据已根据股票池更新{self.df_choice_equd.shape[0]}")
+        return df
 
     def load_all_equ(self) -> pd.DataFrame:
         """默认加载所有股票或者etf基金, 取决于trade_type
@@ -76,7 +89,7 @@ class BaseStrategy:
         if self.df_equ_pool.shape[0] == 0:
             raise Exception("从数据库加载股票|基金数据为空!")
         logger.debug(f"股票池已经加载所有股票数据:{self.df_equ_pool.shape[0]}")
-        return True
+        return self.df_equ_pool
 
     def load_all_equd(self) -> pd.DataFrame:
         """默认加载所有股票或者etf基金, 取决于trade_type
@@ -97,7 +110,7 @@ class BaseStrategy:
         if self.df_equd_pool.shape[0] == 0:
             raise Exception("从数据库加载日线数据为空!")
         logger.debug(f"股票池已经加载所有日线数据:{self.df_equd_pool.shape[0]}")
-        return True
+        return self.df_equd_pool
 
     def append_select_condition(self, condition):
         if self.select_conditions is None:
@@ -113,7 +126,7 @@ class BaseStrategy:
 
         self.select_conditions.append(condition)
         if self.debug_sample_date is not None:
-            logger.debug(f'已加载条件{condition}, 过滤{nc-oc}个股票')
+            logger.debug(f'已加载条件{condition}, {self.debug_sample_date} 现存:{nc} 过滤掉: {nc-oc}个股票')
 
     def append_metric(self, sm: SelectMetric):
         if self.select_metrics is None:
@@ -124,7 +137,7 @@ class BaseStrategy:
 
         if self.debug_sample_date is not None:
             df = self.df_choice_equd.loc[self.df_choice_equd.trade_date==self.debug_sample_date, ['ticker',sm.name]]
-            logger.debug(f'指标{sm.name}已加载, 指标值: {df}')
+            logger.debug(f'指标{sm.name}已加载, {self.debug_sample_date} 指标值: {df}')
 
     def append_metrics(self, sms: List[SelectMetric]):
         for sm in sms:
@@ -158,53 +171,88 @@ class BaseStrategy:
         self.rank_factors.extend(rfs)
 
     def rank(self) -> pd.DataFrame:
+        # 再次根据时间过滤一次日线数据 ，因为之前可能考虑了计算指标时候的margin 数据要去除
+
+        self.__select_equd_by_date(self.start_date, self.end_date)
         df: pd.DataFrame = self.df_choice_equd
         df["rank"] = 0
         tw = 0
         for rf in self.rank_factors:
             if rf.name not in df.columns:
-                raise Exception(f"排序因子无法在df_choice_equd的列中找到:{df.columns}")
+                raise Exception(f"排序因子{rf.name}无法在df_choice_equd的列中找到:{df.columns}")
             subrank_column = rf.name + "_subrank"
             df[subrank_column] = (
                 df.groupby("trade_date")[rf.name].transform(
-                    "rank", ascending=rf.bigfirst, pct=True
+                    "rank", ascending=rf.bigfirst, pct=True, method='max'
                 )
                 * 100
             )
-            # 转换为百分制
             df["rank"] = df["rank"] + df[subrank_column] * rf.weight
-            df.sort_values(
-                ["trade_date", "rank"], ascending=False, inplace=True
-            )
             tw = tw + rf.weight
+
         df["rank"] = df["rank"] / tw
+
+        # 转换为百分制
+        df["xrank"] = (
+            df.groupby("trade_date")['rank'].transform(
+                "rank", ascending = True, pct=True, method='max'
+            )
+            * 100
+        )
+
+        df.sort_values(
+            ["trade_date", "xrank"], ascending=False, inplace=True
+        )
+
         self.df_choice_equd = df
 
 
         if self.debug_sample_date is not None:
             df = self.df_choice_equd.loc[self.df_choice_equd.trade_date==self.debug_sample_date, :]
-            logger.debug(f'排序已完成, 指标值: {df}')
+            logger.debug(f'排序已完成, {self.debug_sample_date}  指标值: {df}')
         logger.debug(f"选好的股票已经排序")
         return df
 
-    def __select_equd_by_date(
+    def set_margin_offset(self, offset):
+        """_summary_
+
+        Args:
+            offset (_type_): _description_
+        """        
+        if offset <= 0:
+            raise Exception ("offset 必须大于0，0本身不需要设置")
+        self.margin_offset=offset
+
+    def set_date(
         self,
         start_date: date,
         end_date: date = None,
     ) -> pd.DataFrame:
-        logger.debug(f"Select between {start_date} - {end_date}")
 
-        df: pd.DataFrame = self.df_equd_pool
+        self.start_date = start_date
+        self.end_date = end_date
+
+        start_date_with_margin = StockUtil().get_trade_date_by_offset(start_date, self.margin_offset)
+        logger.info(f"设置开始日为{start_date},考虑均值边缘效应，向前推移日期{start_date_with_margin}")
+
+        return self.__select_equd_by_date(start_date_with_margin, end_date)
+
+    def __select_equd_by_date(self, start_date: date, end_date: date = None) -> pd.DataFrame:
+        self.default_load_pool()
+
+        df = self.df_choice_equd
+
         if end_date is None:
             df = df[(df.trade_date >= start_date)]
         else:
             df = df[
                 (df.trade_date >= start_date) & (df.trade_date <= end_date)
             ]
-        # df.reset_index(inplace=True)
         self.df_choice_equd = df
+
         return df
 
+    
     def __select_equd_by_expression(self) -> pd.DataFrame:
         logger.debug(f"正在根据指标条件选股:{self.select_conditions} ")
 
