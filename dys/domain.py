@@ -1,7 +1,7 @@
-from typing import Any, Callable
+from typing import Callable
 
 import pandas as pd
-from sqlalchemy import Column, DateTime, Float, Integer, Sequence, String
+from sqlalchemy import Column, Float, Integer, Sequence, String
 from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
 
 Base: DeclarativeMeta = declarative_base()
@@ -45,23 +45,24 @@ class TradeModel:
         self.mmf_enable: bool = mmf_enable
         self.new_pos_target_pct = new_pos_target_pct
         self.cash_pct = cash_pct
-        #备选股票数量
+        # 备选股票数量
         self.bench_num = bench_num
-        self.buy_criterial:Callable = None
-        self.sale_criterial:Callable = None
-        self.notsale_criterial:Callable = None
-    
+        self.buy_criterial: Callable = None
+        self.sale_criterial: Callable = None
+        self.notsale_criterial: Callable = None
+
     def set_buy_criterial(self, shd_buy, *args):
-        self.buy_criterial:Callable = shd_buy
+        self.buy_criterial: Callable = shd_buy
         pass
 
     def set_sale_criterial(self, shd_sale, *args):
-        self.sale_criterial:Callable = shd_sale
+        self.sale_criterial: Callable = shd_sale
         pass
 
     def set_notsale_criterial(self, shdnot_sale, *args):
-        self.notsale_criterial:Callable = shdnot_sale
+        self.notsale_criterial: Callable = shdnot_sale
         pass
+
 
 class StrategyAccount(Base):
     __tablename__ = "strategy_account"

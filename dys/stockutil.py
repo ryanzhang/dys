@@ -2,7 +2,8 @@ from datetime import datetime, timedelta
 
 from kupy.dbadaptor import DBAdaptor
 
-def existedBefore(g,N=90):
+
+def existedBefore(g, N=90):
     # if the difference between the max and min placed_at values is less than 90 days
     # then return False.  Otherwise, return True
     # if the group only has 1 row, then max and min are the same
@@ -10,6 +11,7 @@ def existedBefore(g,N=90):
     if g.trade_date.max() - g.trade_date.min() >= datetime.timedelta(N):
         return True
     return False
+
 
 class StockUtil:
     def __init__(self):
@@ -51,7 +53,7 @@ class StockUtil:
         """
         # 如果给定日期不是交易日，就需要将offset 增1
 
-        df = self.trade_calendar[self.trade_calendar["is_open"] == True]
+        df = self.trade_calendar[self.trade_calendar["is_open"]]
         if offset >= 0:
             df = df.loc[
                 df["calendar_date"] <= trade_date, "calendar_date"

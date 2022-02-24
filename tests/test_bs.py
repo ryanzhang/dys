@@ -89,13 +89,9 @@ class TestBaseStrategy:
         ms.set_equd_pool()
         ms._BaseStrategy__select_equd_by_date(date(2021, 1, 4))
         ms.append_metric(SelectMetric("mom20", m.momentum, 20, "close_price"))
-
-        ms._BaseStrategy__add_metric_column()
         df = ms.df_choice_equd
         assert "mom20" in df.columns
-        logger.debug(df.columns)
         logger.debug(df)
-        pass
 
     def test__add_metric_column_bias(self, ms: MyStrategy, db: DBAdaptor):
         ms.set_equ_pool()
@@ -107,7 +103,7 @@ class TestBaseStrategy:
         df = ms.df_choice_equd
         df.to_csv("/tmp/test__add_metric_column_bias.csv")
         assert "bias" in df.columns
-        logger.debug(df[['trade_date','ticker','bias']])
+        logger.debug(df[["trade_date", "ticker", "bias"]])
         pass
 
     def test_select_equ_by_expression(self, ms: MyStrategy):
@@ -195,6 +191,9 @@ class TestBaseStrategy:
                 ]
             ]
         )
+
+    def test_calc_choice_equd(self, ms: MyStrategy):
+        df = ms.calc_choice_equd(2021, 1, 4)
 
     def test_generate_trade_mfst(self, my: MyStrategy):
         mfst = my.generate_trade_mfst()

@@ -16,7 +16,7 @@ and then choose `flask` as template.
 
 
 from datetime import date
-from typing import Any, Callable, List
+from typing import Any, Callable, Iterable, List
 
 import pandas as pd
 from kupy.config import configs
@@ -33,18 +33,29 @@ class BaseStrategy:
         is_use_df_cache = bool(configs["is_use_df_cache"].data)
         self.__db = DBAdaptor(is_use_cache=is_use_df_cache)
 
-        self.df_equ_pool: Any = None
-        self.df_equd_pool: Any = None
+        self.df_equ_pool = None
+        self.df_equd_pool = None
 
-        self.select_equ_condition: Any = None
-        self.trade_model: Any = None
-        self.rank_factors: Any = None
-        self.select_metrics: Any = None
-        self.mkt_timing_algo: Any = None
+        self.select_conditions = None
+        self.debug_sample_date = None
+        self.trade_model = None
+        self.rank_factors = None
+        self.select_metrics = None
+        self.mkt_timing_algo = None
         # 历史持仓
-        self.df_position: Any = None
+        self.df_position = None
         # 每日择股
-        self.df_choice_equd: Any = None
+        self.df_choice_equd = None
+
+    def load_default_pool(self):
+        if self.df_equ_pool is None:
+            self.load_all_equ()
+        if self.df_equd_pool is None:
+            self.load_all_equd()
+
+        df = self.df_equd_pool
+        df = df[df["ticker"].isin(self.df_equ_pool["ticker"])]
+        self.df_choice_equd=df
 
     def load_all_equ(self) -> pd.DataFrame:
         """默认加载所有股票或者etf基金, 取决于trade_type
@@ -56,12 +67,12 @@ class BaseStrategy:
             self.df_equ_pool = self.__db.get_df_by_sql(
                 "select * from stock.equity "
             )
-            logger.debug(f"股票池已经设定所有上市股票")
+            logger.debug(f"股票池已经加载所有上市股票")
         elif self.trade_type == 1:
             self.df_equ_pool = self.__db.get_df_by_sql(
                 "select * from stock.fund where etf_lof='ETF' "
             )
-            logger.debug(f"股票池已经设定所有ETF基金")
+            logger.debug(f"股票池已经加载所有ETF基金")
         if self.df_equ_pool.shape[0] == 0:
             raise Exception("从数据库加载股票|基金数据为空!")
         logger.debug(f"股票池已经加载所有股票数据:{self.df_equ_pool.shape[0]}")
@@ -88,28 +99,43 @@ class BaseStrategy:
         logger.debug(f"股票池已经加载所有日线数据:{self.df_equd_pool.shape[0]}")
         return True
 
+    def append_select_condition(self, condition):
+        if self.select_conditions is None:
+            self.select_conditions = list()
+        
+        if self.debug_sample_date is not None:
+            oc=self.df_choice_equd[self.df_choice_equd.trade_date == self.debug_sample_date].shape[0] 
+
+        self.df_choice_equd = self.df_choice_equd.query(condition)
+
+        if self.debug_sample_date is not None:
+            nc=self.df_choice_equd[self.df_choice_equd.trade_date == self.debug_sample_date].shape[0] 
+
+        self.select_conditions.append(condition)
+        if self.debug_sample_date is not None:
+            logger.debug(f'已加载条件{condition}, 过滤{nc-oc}个股票')
+
     def append_metric(self, sm: SelectMetric):
         if self.select_metrics is None:
             self.select_metrics = list()
 
+        self.__add_metric_column(sm)
         self.select_metrics.append(sm)
 
-    def append_metrics(self, sms: SelectMetric):
-        if self.select_metrics is None:
-            self.select_metrics = list()
+        if self.debug_sample_date is not None:
+            df = self.df_choice_equd.loc[self.df_choice_equd.trade_date==self.debug_sample_date, ['ticker',sm.name]]
+            logger.debug(f'指标{sm.name}已加载, 指标值: {df}')
 
-        self.select_metrics.extend(sms)
+    def append_metrics(self, sms: List[SelectMetric]):
+        for sm in sms:
+            self.append_metric(sm)
 
-    def __add_metric_column(self) -> pd.DataFrame:
-        if self.select_metrics is None:
-            pass
-
+    def __add_metric_column(self, sm:SelectMetric) -> pd.DataFrame:
         df = self.df_choice_equd
-        for sm in self.select_metrics:
-            df[sm.name] = sm.apply(df, sm.args)
+        df[sm.name] = sm.apply(df, sm.args)
 
         self.df_choice_equd = df
-        logger.debug(f"选股指标已经加载到df_choice_equd 列表中 {self.df_choice_equd}")
+        logger.debug(f"指标{sm.name}已经加载到df_choice_equd 列表中")
         return df
 
     def post_hook_select_equ(self):
@@ -117,12 +143,12 @@ class BaseStrategy:
 
     def append_rankfactor(self, rf: RankFactor):
         cols = self.df_choice_equd.columns
+
         if rf.name not in cols:
             raise Exception(f"排序指标没有在df_choice_equd列中找到:{cols}")
 
         if self.rank_factors is None:
             self.rank_factors = list()
-
         self.rank_factors.append(rf)
 
     def append_rankfactors(self, rfs: List[RankFactor]):
@@ -154,6 +180,10 @@ class BaseStrategy:
         df["rank"] = df["rank"] / tw
         self.df_choice_equd = df
 
+
+        if self.debug_sample_date is not None:
+            df = self.df_choice_equd.loc[self.df_choice_equd.trade_date==self.debug_sample_date, :]
+            logger.debug(f'排序已完成, 指标值: {df}')
         logger.debug(f"选好的股票已经排序")
         return df
 
@@ -164,11 +194,6 @@ class BaseStrategy:
     ) -> pd.DataFrame:
         logger.debug(f"Select between {start_date} - {end_date}")
 
-        if self.df_equ_pool is None:
-            self.load_all_equ()
-        if self.df_equd_pool is None:
-            self.load_all_equd()
-
         df: pd.DataFrame = self.df_equd_pool
         if end_date is None:
             df = df[(df.trade_date >= start_date)]
@@ -176,37 +201,38 @@ class BaseStrategy:
             df = df[
                 (df.trade_date >= start_date) & (df.trade_date <= end_date)
             ]
-        df = df[df.ticker.isin(self.df_equ_pool.ticker)]
         # df.reset_index(inplace=True)
         self.df_choice_equd = df
         return df
 
     def __select_equd_by_expression(self) -> pd.DataFrame:
-        logger.debug(f"正在根据指标条件选股:{self.select_equ_condition} ")
+        logger.debug(f"正在根据指标条件选股:{self.select_conditions} ")
 
         df: pd.DataFrame = self.df_choice_equd
         if df is None:
             raise Exception(f"df_choice_equd还没有设置")
 
-        select_condition = self.select_equ_condition
+        select_condition = self.select_conditions
         if select_condition is not None and select_condition != "":
-            df = df.query(self.select_equ_condition)
+            df = df.query(self.select_conditions)
         self.df_choice_equd = df
         return df
 
-    def generate_trade_mfst(self, start_date: date, end_date: date):
+    def generate_trade_mfst(
+        self, start_date: date, end_date: date = None
+    ) -> pd.DataFrame:
         mfst = pd.DataFrame()
-        df = self.df_choice_equd
+        # df = self.df_choice_equd
 
         return mfst
 
-    def get_choice_equ_list_by_date (self, trade_date: date) -> pd.DataFrame:
+    def get_choice_equ_list_by_date(self, trade_date: date) -> pd.DataFrame:
         df = self.df_choice_equd
-        df.loc['trade_date' == trade_date, ""]
+        df.loc["trade_date" == trade_date, ""]
         logger.debug(f"{trade_date} 选股已经返回")
         pass
 
-    def calc_choice_equd (
+    def calc_choice_equd(
         self, start_date: date, end_date: date = None
     ) -> pd.DataFrame:
         """根据给定的日期，获取根据策略选股条件以及排序之后选出的股票
@@ -229,7 +255,7 @@ class BaseStrategy:
 
         df = self.rank()
         logger.debug(f"选择的股票，每日行情排序已经完成:{df[['ticker','rank']]} ")
-        return pd.DataFrame()
+        return df
 
     def get_roi_mfst(
         self, start_date: date, end_date: date = None
@@ -250,7 +276,6 @@ class BaseStrategy:
 
         self.calc_choice_equd(start_date, end_date)
 
-
         mfst = self.generate_trade_mfst(start_date, end_date)
 
         logger.debug(f"回测结果清单已经生成{mfst}")
@@ -265,7 +290,6 @@ class BaseStrategy:
         logger.debug("交易统计已返回")
 
         return pd.DataFrame()
-
 
     def get_rebalance_operation(
         self, trade_date: date, start_date: date = None, end_date: date = None
