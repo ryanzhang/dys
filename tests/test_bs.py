@@ -183,11 +183,21 @@ class TestBaseStrategy:
             ]
         )
 
-    def test_calc_choice_equd(self, ms: MyStrategy):
-        df = ms.calc_choice_equd(2021, 1, 4)
+    def test_choice_equ_by_date(self, ms: MyStrategy):
+        the_date = date(2021,1,5)
+        df = ms.get_choice_equ_by_date(the_date)
+        assert df is not None
+        logger.debug(f'{the_date} 共选出 {df.shape[0]}')
 
     def test_generate_trade_mfst(self, my: MyStrategy):
         mfst = my.generate_trade_mfst()
+        assert mfst is not None
+
+    def test_get_trade_mfst_by_date(self, my: MyStrategy):
+        the_date = date(2021,1,5)
+        df = my.get_trade_mfst_by_date(the_date)
+        assert df is not None
+        logger.debug(f'{the_date} 共选出 {df.shape[0]}')
 
     def test_roi_mfst(self, ms: MyStrategy):
 

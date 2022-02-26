@@ -16,6 +16,11 @@ class m(object):
         object (_type_): _description_
     """
 
+    def neg_market_amount(df: pd.DataFrame, name, args) -> pd.DataFrame:
+        df_metric = pd.DataFrame(index = df.index)
+        df_metric[name] = (df['neg_market_value']/df['close_price']).astype(int)
+        return df_metric
+
     def momentum(df: pd.DataFrame, name, args) -> pd.DataFrame:
         """N日内变动百分比
 
@@ -94,14 +99,14 @@ class m(object):
         df_metric = pd.DataFrame(index = df.index)
 
         # 求每日中每个股票的价格与量各自的在市场的排名值
-        df_t = df.groupby("ticker").apply(m.__price_vol_rank_rate)
+        df_t = df.groupby("trade_date").apply(m.__price_vol_rank_rate)
         # 求价，量 排行的协方差的方向值(即协方差值*-1），协方差为负值时，它越小(即负值绝对值越大，表示背离越严重)
-        df_t = df_t.groupby("trade_date").apply(m._negative_cov)
-        df_t['wq_alpha16'] = df_t.groupby("ticker")['neg_cov'].transform('rank')
-        df_metric[name] = df['wq_alpah16']
+        df_t = df_t.groupby("ticker").apply(m._negative_cov)
+        df_t['wq_alpha16'] = df_t.groupby("trade_date")['neg_cov'].transform('rank', method='max')
+        df_metric[name] = df_t['wq_alpha16']
         # Debug inform
         logger.debug(f"Alpha016 sample数列已到处到/tmp/sample_wq_alpha16.csv")
-        df_t.loc[(df_t['ticker']=='603192') &(df_t['trade_date'=='20210104']),:].to_csv("/tmp/sample_wq_alpha16.csv")
+        df_t.loc[(df_t['ticker']=='603192') &(df_t['trade_date']==pd.to_datetime('20210104')),:].to_csv("/tmp/sample_wq_alpha16.csv")
 
         return df_metric
 
@@ -341,9 +346,9 @@ class m(object):
         Args:
             x (_type_): _description_
         """        
-        x['highrank'] = x['highrank'].rolling(N)
-        x['volrank'] = x['volrank'].rolling(N)
-        x['neg_cov']=-1*x['highrank'].cov(x['volrank'])
+        # x['highrank'] = x['highrank'].rolling(N)
+        # x['volrank'] = x['volrank'].rolling(N)
+        x['neg_cov']=-1*x['highrank'].rolling(N).cov(x['volrank'])
         return x
 
 

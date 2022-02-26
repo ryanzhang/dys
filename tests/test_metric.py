@@ -18,7 +18,7 @@ class TestMetrics:
     def df(self):
         db = DBAdaptor(is_use_cache=True)
         df = db.get_df_by_sql(
-            "select * from stock.mkt_equ_day where trade_date > '20210104' and open_price>0"
+            "select * from stock.mkt_equ_day where trade_date > '20200709' and open_price>0"
         )
         assert df is not None
         return df
@@ -60,12 +60,12 @@ class TestMetrics:
         df = df.join(df_metric )
         assert "wq_alpha16" in df_metric.columns
         df_sample_null_metric = df.loc[
-            (df["ticker"] == "603192") & (df[sm.name].isna()), :
+            (df["ticker"] == "603192") & (df["trade_date"]==pd.to_datetime('20210104')), :
         ]
         # Alpha 因子会计算5日MA，所以会有4天空白
-        assert df_sample_null_metric.shape[0] == 4
-        # df.to_csv("/tmp/wq_alpha16.csv")
-        logger.debug(df_metric)
+        # assert df_sample_null_metric.shape[0] == 4
+        df_sample_null_metric.to_csv("/tmp/wq_alpha16.csv")
+        # logger.debug(df_metric)
 
     def test_ntra_turnover_rate(self, df: pd.DataFrame):
         sm = SelectMetric("ntra_turnover_rate", m.ntra_turnover_rate, 5)
@@ -179,3 +179,14 @@ class TestMetrics:
         df_metric2 = sm2.apply(df,sm2.name, sm2.args)
         df = df.join(df_metric2 )
         assert sm2.name in df.columns
+
+    def test_neg_market_amount(self, df: pd.DataFrame):
+        # sm = SelectMetric(f"turnover_rate_5", m.ma_turnover_rate, N)
+        # df_metric1 = sm.apply(df,sm.name, sm.args)
+        # df = df.join(df_metric1 )
+
+        sm = SelectMetric("neg_market_amount", m.neg_market_amount)
+        df_metric = sm.apply(df,sm.name, sm.args)
+        df = df.join(df_metric )
+        assert sm.name in df.columns
+        assert df[sm.name].notna().all()

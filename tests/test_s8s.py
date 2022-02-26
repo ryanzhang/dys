@@ -34,7 +34,7 @@ class S8Strategy(BaseStrategy):
         self.append_metric(
             SelectMetric("list_days", m.list_days, self.df_equ_pool)
         )
-        self.append_metric(SelectMetric("wq_alpha16", m.wq_alpha16), reset_cache=True)
+        self.append_metric(SelectMetric("wq_alpha16", m.wq_alpha16))
         self.append_metric(
             SelectMetric("ntra_turnover_rate_5", m.ntra_turnover_rate, 5)
         )

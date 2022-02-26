@@ -244,18 +244,42 @@ class BaseStrategy:
         return df
 
     def generate_trade_mfst(
-        self, start_date: date, end_date: date = None
+        self
     ) -> pd.DataFrame:
+        """产生交易清单
+
+        Args:
+            start_date (date): _description_
+            end_date (date, optional): _description_. Defaults to None.
+
+        Returns:
+            pd.DataFrame: _description_
+        """    
         mfst = pd.DataFrame()
         # df = self.df_choice_equd
 
         return mfst
 
-    def get_choice_equ_list_by_date(self, trade_date: date) -> pd.DataFrame:
+    def get_trade_mfst_by_date(
+        self, trade_date:date,
+    ) -> pd.DataFrame:
+        """产生交易清单
+
+        Args:
+            start_date (date): _description_
+            end_date (date, optional): _description_. Defaults to None.
+
+        Returns:
+            pd.DataFrame: _description_
+        """    
+        mfst = pd.DataFrame()
+        # df = self.df_choice_equd
+
+        return mfst
+
+    def get_choice_equ_by_date(self, trade_date: date) -> pd.DataFrame:
         df = self.df_choice_equd
-        df.loc["trade_date" == trade_date, ""]
-        logger.debug(f"{trade_date} 选股已经返回")
-        pass
+        return df.loc["trade_date" == trade_date, :]
 
     def get_roi_mfst(
         self, start_date: date, end_date: date = None
