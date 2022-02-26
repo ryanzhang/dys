@@ -35,9 +35,7 @@ class StockUtil:
             raise Exception("没有找到给定日期的交易信息")
         return ret.iloc[0]
 
-    def get_trade_date_by_offset(
-        self, trade_date: date, offset: int
-    ) -> date:
+    def get_trade_date_by_offset(self, trade_date: date, offset: int) -> date:
         """根据offset 推算给定日期之前或之后的若干交易日
         如果offset == 0 就是算出 给定日之前的最近交易日，包括给定日期
         如果offset >0 就是推算给定日期最近的过去交易日往过去推offset个交易日

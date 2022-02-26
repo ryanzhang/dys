@@ -1,4 +1,5 @@
 from typing import Callable
+from kupy import configs
 
 import pandas as pd
 from sqlalchemy import Column, Float, Integer, Sequence, String
@@ -6,6 +7,10 @@ from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
 
 Base: DeclarativeMeta = declarative_base()
 
+
+class StrategyConfig:
+    def __init__(self):
+        self.data_folder=configs['data_folder'].data
 
 class RankFactor:
     def __init__(
@@ -19,12 +24,13 @@ class RankFactor:
         self.weight: int = weight  # default value 1
 
 
+
 class SelectMetric:
     def __init__(self, name: str, func: Callable, *args):
         if name == "":
             raise Exception("指标名称不能为空")
         self.name = name
-        self.apply: Callable[[pd.DataFrame, tuple], pd.Series] = func
+        self.apply: Callable[[pd.DataFrame, tuple], pd.DataFrame] = func
         self.args = args
 
 

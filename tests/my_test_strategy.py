@@ -9,10 +9,12 @@ from dys.domain import TradeModel
 
 
 class MyStrategy(BaseStrategy):
-    def __init__(self):
-        BaseStrategy.__init__(self)
+    def __init__(self, start_date:str=None, end_date:str=None):
+        if start_date is not None and end_date is not None:
+            BaseStrategy.__init__(self, start_date, end_date)
+        else:
+            BaseStrategy.__init__(self)
         logger.debug("Construct MyStrategy")
-        pass
 
     def set_mkt_timing_alg(self) -> bool:
         return True
@@ -23,23 +25,13 @@ class MyStrategy(BaseStrategy):
         df = db.get_df_by_sql(
             "select * from stock.equity where exchange_cd = 'XSHG'"
         )
-
         self.df_equ_pool = df
 
-        logger.debug(f"自定义股票池已经设定成功")
-        return True
+        df_equd = self.select_equd_by_equ_pool()
 
-    def set_equd_pool(self) -> bool:
-        db = DBAdaptor(is_use_cache=True)
 
-        df = db.get_df_by_sql(
-            "select * from stock.mkt_equ_day where trade_date >= '20220104'"
-        )
-
-        self.df_equd_pool = df
-
-        logger.debug(f"自定义股票池已经设定成功")
-        return True
+        logger.debug(f"自定义股票池已经设定成功{self.df_equ_pool.shape[0]} {self.df_equd_pool.shape[0]}")
+        return df_equd
 
     def set_select_equ_condition(self, query_str) -> bool:
         """设置选股条件字符串，条件字符串按照df.query接受的语法

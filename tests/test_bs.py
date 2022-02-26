@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta
+import os
 import pytest
 from kupy.dbadaptor import DBAdaptor
 from kupy.logger import logger
@@ -17,13 +18,13 @@ xfail = pytest.mark.xfail
 
 
 class TestBaseStrategy:
+    # 加载一年的数据，并加载120天的margin 用于计算指标
     @pytest.fixture(scope="class")
-    def db(self):
-        return DBAdaptor()
-
-    @pytest.fixture()
     def ms(self):
-        return MyStrategy()
+        ms = MyStrategy('20200709','20211231') 
+        # Modify the config.data_folder
+        ms._BaseStrategy__set_cache_folder(ms.config.data_folder + "tests/")
+        return ms
 
     @pytest.fixture(autouse=True)
     def setup_teamdown(self):
@@ -31,120 +32,103 @@ class TestBaseStrategy:
         yield
         logger.info("TestCase Level Tear Down is triggered!")
 
-    def test_using_base_construct_ok(self, db: DBAdaptor):
+    def test_using_default_construct_ok(self):
         ms = MyStrategy()
         assert ms is not None
-        df = ms.equd_pool
-        equd_size = df.shape[0]
-        logger.debug(f"current equ pool size:{ms.equ_pool.shape[0]}")
-        logger.debug(f"current equd pool size:{equd_size}")
+        assert ms.df_equ_pool is not None
+        assert ms.df_equd_pool is not None
+        assert ms.df_choice_equd is not None
+        assert ms.config is not None
+        assert ms.config.data_folder is not None
+        assert os.path.exists(ms.config.data_folder+"/cache/6f258.parquet")
 
-    def test_equ_pool_not_empty(self, db: DBAdaptor):
-        mes: BaseStrategy = MyETFStrategy()
-        assert mes.equ_pool is not None
-        assert mes.equ_pool.shape[0] > 1
-        logger.debug(f"current equ pool size:{mes.equ_pool.shape[0]}")
-        logger.debug(f"current equd pool size:{mes.equd_pool.shape[0]}")
+    def test_customize_date_construck_ok(self):
+        start_date='20210104'
+        end_date='20211229'
+        logger.debug(f"Construct customize date from {start_date} to {end_date}")
+        ms = MyStrategy(start_date, end_date) 
+        assert ms is not None
+        assert ms.df_equ_pool is not None
+        assert ms.df_equd_pool is not None
+        assert ms.df_choice_equd is not None
+
+        logger.debug(f"current equ pool size:{ms.df_equ_pool.shape[0]}")
+        logger.debug(f"current equd pool size:{ms.df_equd_pool.shape[0]}")
+    
 
     def test_select_equd_by_date_without_customize_equ_pool(
         self, ms: MyStrategy
     ):
-        ms.load_all_equ()
-        ms.load_all_equd()
-        df1 = ms._BaseStrategy__select_equd_by_date(date(2021, 1, 4))
+        
+        df1 = ms.select_equd_by_date(date(2020, 7, 9))
         assert df1 is not None
-        assert df1["trade_date"].iloc[0] == date(2021, 1, 4)
-        df2 = ms._BaseStrategy__select_equd_by_date(
-            date(2021, 1, 6), date(2022, 1, 28)
+        assert df1["trade_date"].iloc[0] == date(2020, 7, 9)
+        df2 = ms.select_equd_by_date(
+            date(2021, 7, 6), date(2021, 8, 6)
         )
         assert df2 is not None
-        assert df2["trade_date"].iloc[0] == date(2021, 1, 6)
-        assert df2["trade_date"].iloc[-1] == date(2022, 1, 28)
+        assert df2["trade_date"].iloc[0] == date(2021, 7, 6)
+        assert df2["trade_date"].iloc[-1] == date(2021, 8, 6)
 
     def test_select_equd_by_date_with_customize_equ_pool(self, ms: MyStrategy):
+        # set_equ_pool custimze the equ poo to only XSHG
         ms.set_equ_pool()
-        df1: pd.DataFrame = ms._BaseStrategy__select_equd_by_date(
-            date(2021, 1, 4)
+        df1: pd.DataFrame = ms.select_equd_by_date(
+            date(2021, 7, 9)
         )
         assert df1 is not None
-        assert df1["trade_date"].iloc[0] == date(2021, 1, 4)
+        assert df1["trade_date"].iloc[0] == date(2021, 7, 9)
         # 有退市的股票
+        n = df1["ticker"].nunique() 
+        assert n <= ms.df_equ_pool.shape[0]
+        assert df1.loc[df1.sec_id.str.endswith('XSHG'),:].shape[0] == df1.shape[0]
         assert df1["ticker"].nunique() <= ms.df_equ_pool.shape[0]
 
-    def test_select_equd_by_date_with_customize_equd_pool(
-        self, ms: MyStrategy
-    ):
-        ms.set_equ_pool()
-        ms.set_equd_pool()
-        df1: pd.DataFrame = ms._BaseStrategy__select_equd_by_date(
-            date(2021, 1, 4)
-        )
-        assert df1 is not None
-        assert df1["trade_date"].iloc[0] == date(2021, 1, 4)
-        # 有退市的股票
-        assert df1["ticker"].nunique() <= ms.df_equ_pool.shape[0]
-
-    def test__add_metric_column(self, ms: MyStrategy, db: DBAdaptor):
-        ms.set_equ_pool()
-        ms.set_equd_pool()
-        ms._BaseStrategy__select_equd_by_date(date(2021, 1, 4))
-        ms.append_metric(SelectMetric("mom20", m.momentum, 20, "close_price"))
+    def test__add_metric_column(self, ms: MyStrategy):
+        ms.append_metric(SelectMetric("MOM20_close_price", m.momentum, 20, "close_price"))
         df = ms.df_choice_equd
-        assert "mom20" in df.columns
+        assert "MOM20_close_price" in df.columns
+        assert os.path.exists(ms.config.data_folder + "metrics/MOM20_close_price.paquet")
         logger.debug(df)
 
-    def test__add_metric_column_bias(self, ms: MyStrategy, db: DBAdaptor):
-        ms.set_equ_pool()
-        ms.set_equd_pool()
-        ms._BaseStrategy__select_equd_by_date(date(2022, 1, 4))
-        ms.append_metric(SelectMetric("bias", m.bias, 6))
-
-        ms._BaseStrategy__add_metric_column()
-        df = ms.df_choice_equd
-        df.to_csv("/tmp/test__add_metric_column_bias.csv")
-        assert "bias" in df.columns
-        logger.debug(df[["trade_date", "ticker", "bias"]])
-        pass
-
     def test_select_equ_by_expression(self, ms: MyStrategy):
-        ms.set_equ_pool()
-        ms.set_equd_pool()
-        ms._BaseStrategy__select_equd_by_date(date(2021, 1, 4))
+        ms.select_equd_by_date(date(2021, 1, 4))
         # ms.append_metric(SelectMetric("mom20", m.momentum, 20, "close_price"))
-        ms.set_select_equ_condition("close_price < 20")
-        df = ms._BaseStrategy__select_equd_by_expression()
+        ms.append_select_condition("close_price < 20")
+        df = ms.df_choice_equd
         assert df is not None
+        rowcount = df.shape[0]
+        assert rowcount == df.loc[df['close_price']<20,:].shape[0]
+
         logger.debug(df[["trade_date", "ticker", "close_price"]])
-    
-    def test_set_date(self, ms:MyStrategy):
-        ms.set_equ_pool()
-        ms.set_equd_pool()
-        ms.set_margin_offset(5)
-        df = ms.set_date(date(2017,1,4))
+
+    def test_select_by_date(self, ms: MyStrategy):
+        ms.select_equd_by_date(date(2021, 3, 4))
+        df = ms.df_choice_equd
+
+        assert df.iloc[0].trade_date == date(2021,3,4)
         logger.debug(df)
 
     def test_ranking_1_factor(self, ms: MyStrategy):
-        ms.set_equ_pool()
-        ms.set_equd_pool()
-        ms._BaseStrategy__select_equd_by_date(date(2022, 1, 4))
-        ms.append_metric(SelectMetric("mom20", m.momentum, 20, "close_price"))
+        ms.append_metric(SelectMetric("MOM20_close_price", m.momentum, 20, "close_price"))
 
-        ms._BaseStrategy__add_metric_column()
-        ms.append_rankfactor(RankFactor(name="mom20", bigfirst=True, weight=1))
+        ms.select_equd_by_date(date(2022, 1, 5))
+
+        ms.append_rankfactor(RankFactor(name="MOM20_close_price", bigfirst=True, weight=1))
         ms.post_hook_select_equ()
         df = ms.rank()
         assert "rank" in df.columns
-        assert "mom20_subrank" in df.columns
+        assert "MOM20_close_price_subrank" in df.columns
         df.to_csv("/tmp/test_ranking.csv")
         logger.debug(df.columns)
         logger.debug(
-            df[["trade_date", "ticker", "mom20", "rank", "mom20_subrank"]]
+            df[["trade_date", "ticker", "MOM20_close_price", "rank", "MOM20_close_price_subrank"]]
         )
 
     def test_ranking_1_factor_small_first(self, ms: MyStrategy):
         ms.set_equ_pool()
         ms.set_equd_pool()
-        ms._BaseStrategy__select_equd_by_date(date(2022, 1, 4))
+        ms.select_equd_by_date(date(2022, 1, 4))
 
         ms.append_rankfactor(
             RankFactor(name="close_price", bigfirst=False, weight=1)
@@ -171,7 +155,7 @@ class TestBaseStrategy:
         ms.set_equ_pool()
         ms.set_equd_pool()
         ms.set_select_equ_condition("close_price<20")
-        ms._BaseStrategy__select_equd_by_date(date(2022, 1, 4))
+        ms.select_equd_by_date(date(2022, 1, 4))
         ms.append_metric(SelectMetric("mom20", m.momentum, 20, "close_price"))
         ms._BaseStrategy__add_metric_column()
         ms.post_hook_select_equ()
@@ -210,7 +194,7 @@ class TestBaseStrategy:
         ms.set_equ_pool()
         ms.set_equd_pool()
         ms.set_select_equ_condition("close_price<20")
-        ms._BaseStrategy__select_equd_by_date(date(2022, 1, 4))
+        ms.select_equd_by_date(date(2022, 1, 4))
         ms.append_metric(SelectMetric("mom20", m.momentum, 20, "close_price"))
         ms._BaseStrategy__add_metric_column()
         ms.post_hook_select_equ()

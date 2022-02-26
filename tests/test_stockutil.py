@@ -47,3 +47,12 @@ class TestStockUtil:
         assert util.get_trade_date_by_offset(date(2022, 1, 29), -1) == date(
             2022, 2, 8
         )
+        ret =  util.get_trade_date_by_offset(date(2010,1,4), 120)
+        logger.info(f'2010-1-4前120交易日{ret}') 
+
+        ret =  util.get_trade_date_by_offset(date(2021,1,4), 120)
+        logger.info(f'2021-1-4前120交易日{ret}') 
+
+        ret =  util.get_trade_date_by_offset(date(2020,1,4), 120)
+        logger.info(f'2020-1-4前120交易日{ret}') 
+

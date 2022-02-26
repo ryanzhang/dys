@@ -25,8 +25,8 @@ def stand(factor: pd.Series) -> pd.Series:
 
 class Neutra(object):
     def __init__(self, ds_market_value):
-        self.market_value =  ds_market_value
- 
+        self.market_value = ds_market_value
+
     def __standalize(self, target: pd.Series) -> pd.Series:
         target = mad(target)
         target = stand(target)
@@ -40,7 +40,7 @@ class Neutra(object):
         y_predict = lr.predict(x)
         return y_predict
 
-    def apply(self, target:pd.Series)->pd.Series:
+    def apply(self, target: pd.Series) -> pd.Series:
         """返回残差
 
         Args:
@@ -48,15 +48,14 @@ class Neutra(object):
 
         Returns:
             pd.Series: _description_
-        """        
+        """
         target = self.__standalize(target)
         predict = self.__linear_regression(target)
         return target - predict
-    
-    def standalize(self, target:pd.Series)->pd.Series:
+
+    def standalize(self, target: pd.Series) -> pd.Series:
         return self.__standalize(target)
 
-    def predict(self, target:pd.Series)->pd.Series:
+    def predict(self, target: pd.Series) -> pd.Series:
         target = self.__standalize(target)
         return self.__linear_regression(target)
-   

@@ -520,23 +520,29 @@ class Alphas(object):
 
     # Alpha#29	 (min(product(rank(rank(scale(log(sum(ts_min(rank(rank((-1 * rank(delta((close - 1),5))))), 2), 1))))), 1), 5) + ts_rank(delay((-1 * returns), 6), 5))
     def alpha029(self):
-        return ts_min(
-            rank(
+        return (
+            ts_min(
                 rank(
-                    scale(
-                        log(
-                            ts_sum(
-                                rank(
-                                    rank(-1 * rank(delta((self.close - 1), 5)))
-                                ),
-                                2,
+                    rank(
+                        scale(
+                            log(
+                                ts_sum(
+                                    rank(
+                                        rank(
+                                            -1
+                                            * rank(delta((self.close - 1), 5))
+                                        )
+                                    ),
+                                    2,
+                                )
                             )
                         )
                     )
-                )
-            ),
-            5,
-        ) + ts_rank(delay((-1 * self.returns), 6), 5)
+                ),
+                5,
+            )
+            + ts_rank(delay((-1 * self.returns), 6), 5)
+        )
 
     # Alpha#30	 (((1.0 - rank(((sign((close - delay(close, 1))) + sign((delay(close, 1) - delay(close, 2)))) +sign((delay(close, 2) - delay(close, 3)))))) * sum(volume, 5)) / sum(volume, 20))
     def alpha030(self):

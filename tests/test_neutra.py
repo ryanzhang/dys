@@ -49,12 +49,13 @@ class TestNeutra:
 
     def test_ntra_apply(self, df: pd.DataFrame):
         ntra = Neutra(df["market_value"])
-        df['bias'] = df['chg_pct']*100
+        df["bias"] = df["chg_pct"] * 100
         df["nbias"] = ntra.apply(df["bias"])
 
         assert "bias" in df.columns
         logger.debug(df)
         pass
+
     @skip
     def test_ntra_apply_with_plot(self, df: pd.DataFrame):
         ntra = Neutra(df["market_value"])
