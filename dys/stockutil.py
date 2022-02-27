@@ -1,7 +1,7 @@
 from datetime import date, datetime, timedelta
 
-from kupy.dbadaptor import DBAdaptor
 import pandas as pd
+from kupy.dbadaptor import DBAdaptor
 
 
 def existedBefore(g, N=90):
@@ -66,9 +66,13 @@ class StockUtil:
             ret = df.iloc[0]
 
         return ret
-    
-    def get_trade_date_by_range(self, start:date, end:date)->pd.Series:
-        df:pd.DataFrame = self.trade_calendar
 
-        return df.loc[df.is_open & (df.calendar_date>=start) & (df.calendar_date <= end),'calendar_date']
-        
+    def get_trade_date_by_range(self, start: date, end: date) -> pd.Series:
+        df: pd.DataFrame = self.trade_calendar
+
+        return df.loc[
+            df.is_open
+            & (df.calendar_date >= start)
+            & (df.calendar_date <= end),
+            "calendar_date",
+        ]

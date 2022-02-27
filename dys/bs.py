@@ -14,8 +14,8 @@ If you want to replace this with a Flask application run:
 and then choose `flask` as template.
 """
 
-from datetime import date, timedelta
 import os
+from datetime import date, timedelta
 from typing import Any, Iterable, List
 
 import pandas as pd
@@ -28,10 +28,17 @@ from dys.stockutil import StockUtil
 
 # By default 120 tradeable days between 2009-07-09 to 2020-12-31
 # New k data can be append since 2022-01-04
-DEFAULT_TOTAL_START_DATE= '20090709'
-DEFAULT_TOTAL_END_DATE='20220223'
+DEFAULT_TOTAL_START_DATE = "20090709"
+DEFAULT_TOTAL_END_DATE = "20220223"
+
+
 class BaseStrategy:
-    def __init__(self,  start_date: str = DEFAULT_TOTAL_START_DATE, end_date: str= DEFAULT_TOTAL_END_DATE, trade_type: int = 0 ):
+    def __init__(
+        self,
+        start_date: str = DEFAULT_TOTAL_START_DATE,
+        end_date: str = DEFAULT_TOTAL_END_DATE,
+        trade_type: int = 0,
+    ):
         logger.info("Construct dys Base")
         self.dataset_start = start_date
         self.dataset_end = end_date
@@ -46,13 +53,14 @@ class BaseStrategy:
         self.trade_model = None
         self.rank_factors = None
         # self.select_metrics = None
-        self.df_metrics:List(str) = list()
+        self.df_metrics: List(str) = list()
 
         self.mkt_timing_algo = None
         # 历史持仓
-        self.df_position = None
+        self.df_position_mfst = pd.DataFrame()
         # 历史卖出清单
-        self.df_position = None
+        self.df_sale_mfst = pd.DataFrame()
+
         # 过滤出来的股票池
         self.df_choice_equd = None
 
@@ -66,21 +74,20 @@ class BaseStrategy:
         self.__load_total_data_set()
 
         self.df_choice_equd = self.df_equd_pool
+        self.stockutil: StockUtil = StockUtil()
 
     def __set_cache_folder(self, path):
         self.config.data_folder = path
         self.__mk_folder()
 
-    def __mk_folder(self ):
-        os.makedirs(self.config.data_folder+"cache/", exist_ok=True)
-        os.makedirs(self.config.data_folder+"metrics/", exist_ok=True)
+    def __mk_folder(self):
+        os.makedirs(self.config.data_folder + "cache/", exist_ok=True)
+        os.makedirs(self.config.data_folder + "metrics/", exist_ok=True)
 
     def __load_total_data_set(self):
-        db = DBAdaptor(is_use_cache = True)
+        db = DBAdaptor(is_use_cache=True)
         if self.trade_type == 0:
-            self.df_equ_pool = db.get_df_by_sql(
-                "select * from stock.equity"
-            )
+            self.df_equ_pool = db.get_df_by_sql("select * from stock.equity")
             logger.debug(f"股票池已经加载所有上市股票")
         elif self.trade_type == 1:
             self.df_equ_pool = db.get_df_by_sql(
@@ -104,7 +111,6 @@ class BaseStrategy:
         if self.df_equd_pool.shape[0] == 0:
             raise Exception("从数据库加载日线数据为空!")
         logger.debug(f"股票池已经加载所有日线数据:{self.df_equd_pool.shape[0]}")
-    
 
     def select_equd_by_equ_pool(self):
         df = self.df_equd_pool
@@ -137,8 +143,10 @@ class BaseStrategy:
                 f"已加载条件{condition}, {self.debug_sample_date} 现存:{nc} 过滤掉: {nc-oc}个股票"
             )
 
-    def append_metric(self, sm: SelectMetric, reset_cache:bool=False):
-        self.df_choice_equd[sm.name] = self.__add_metric_column(sm, reset_cache)
+    def append_metric(self, sm: SelectMetric, reset_cache: bool = False):
+        self.df_choice_equd[sm.name] = self.__add_metric_column(
+            sm, reset_cache
+        )
         self.df_metrics.append(sm.name)
 
         # Debug information
@@ -153,11 +161,15 @@ class BaseStrategy:
         for sm in sms:
             self.append_metric(sm)
 
-    def __add_metric_column(self, sm: SelectMetric, reset_cache:bool =False) -> pd.Series:
-        metric_cache_file = f'{self.config.data_folder}/metrics/{sm.name}.paquet' 
+    def __add_metric_column(
+        self, sm: SelectMetric, reset_cache: bool = False
+    ) -> pd.Series:
+        metric_cache_file = (
+            f"{self.config.data_folder}/metrics/{sm.name}.paquet"
+        )
 
         if reset_cache or not os.path.exists(metric_cache_file):
-            # Compute the metric 
+            # Compute the metric
             df_metric = sm.apply(self.df_choice_equd, sm.name, sm.args)
             df_metric.to_parquet(metric_cache_file, index=True)
         else:
@@ -216,6 +228,11 @@ class BaseStrategy:
             )
             * 100
         )
+        df["rank"] = (
+            df.groupby("trade_date")["xrank"].transform(
+                "rank", ascending=False, 
+            )
+        )
 
         df.sort_values(["trade_date", "xrank"], ascending=False, inplace=True)
 
@@ -229,16 +246,18 @@ class BaseStrategy:
         logger.debug(f"选好的股票已经排序")
         return df
 
-
     def select_equd_by_date(
         self, start_date: date, end_date: date = None
     ) -> pd.DataFrame:
 
         df = self.df_choice_equd
+        self.start_date = start_date
 
         if end_date is None:
             df = df[(df.trade_date >= start_date)]
+            self.end_date = self.dataset_end
         else:
+            self.end_date = end_date
             df = df[
                 (df.trade_date >= start_date) & (df.trade_date <= end_date)
             ]
@@ -246,9 +265,7 @@ class BaseStrategy:
 
         return df
 
-    def generate_position_mfst(
-        self
-    ) -> pd.DataFrame:
+    def generate_position_mfst(self) -> pd.DataFrame:
         """产生交易清单
 
         Args:
@@ -257,59 +274,173 @@ class BaseStrategy:
 
         Returns:
             pd.DataFrame: _description_
-        """    
-        mfst = pd.DataFrame()
-        tm:TradeModel = self.trade_model
-        trade_dates:pd.Series = StockUtil().get_trade_dates_by_range(self.start, self.end)
-        columns = ["sec_short_name","ticker","industry1","industry2","pre_close_price","act_pre_close_price", "open_price","close_price","chg_pct"]
-        columns.extend(self.metrics)
-        columns.extend(['period_start_pos_pct','chg_pct_after_buy','hold_days'])
-        pre = None
-        for index, td in trade_dates.iteritems():
-            cur = pd.DataFrame(columns=columns)
+        """
+        tm: TradeModel = self.trade_model
+        # 9 columns
+        columns = [
+            "period",
+            "start_date",
+            "end_date",
+            "ticker",
+            "period_pre_close_price",
+            "period_start_pos_pct",
+            "chg_pct_after_buy",
+            "hold_days",
+            "net",
+        ]
 
-            df_candi=self.get_choice_equ_by_date(td-timedelta(1))
-            df_candidate=df_candidate.query(tm.buy_criterial)
+        pre = None
+        start_date = self.start_date
+        # for index, td in trade_dates.iteritems():
+        while start_date <= self.end_date:
+            end_date = self.stockutil.get_trade_date_by_offset( start_date,
+                -1 * tm.xperiod
+            )
+
             # 先判断卖出
             if pre is not None:
-                pre = pre.apply(self.get_chg_pct_after_buy, self.df_choice_equd, self.trade_model)
+                pre["period"] = period
+                pre["start_date"] = start_date
+                pre["end_date"] = end_date
+                pre["hold_days"] = pre["hold_days"] + tm.xperiod
+                pre["period_pre_close_price"] = pre["close_price"] + tm.xperiod
+
+                pre.drop(pre.columns[9:len(pre.columns)], axis=1, inplace=True)
+
+                update_pre_equd = self.df_choice_equd.loc[
+                    (self.df_choice_equd.ticker.isin(pre.ticker))
+                    & (self.df_choice_equd.trade_date == end_date),
+                    self.df_choice_equd.columns[2:len(self.df_choice_equd.columns)],
+                ]
+                pre = pd.merge(pre, update_pre_equd, on = 'ticker', how = 'left')
+
+                pre["chg_pct_after_buy"] = (pre["chg_pct_after_buy"] + 1) * (
+                    pre["close_price"]/pre["period_pre_close_price"] 
+                ) - 1
+
+                pre_net: float = pre["net"].iloc[0]
+                cur_net: float = (
+                    (pre["close_price"]/pre["period_pre_close_price"])
+                    * pre["period_start_pos_pct"]
+                    * pre_net
+                ).sum()
+                pre["net"] = cur_net
+                pre["period_start_pos_pct"] = (
+                    pre["period_start_pos_pct"]
+                    * pre_net
+                    * (pre["close_price"]/pre["period_pre_close_price"])
+                ) / cur_net
+
                 # Check Sale condition
                 sale = pre.query(tm.sale_criterial)
-                balance = sale['chg_pct_after_buy']*(1-self.trade_model.sale_fee_rate)*sale['period_start_pos_pct']
+
+                notsale = sale.query(tm.notsale_criterial)
+
+                sale = sale[~sale.ticker.isin(notsale.ticker)]
+
+                # 空出仓位值
+                balance: float = (
+                    sale["period_start_pos_pct"]
+                    * sale["net"]
+                ).sum()
+
+                self.df_sale_mfst = pd.concat([self.df_sale_mfst, sale])
+
+                pre=pre[~pre.ticker.isin(sale.ticker)]
+
                 # 检查是否有超出边界 但是没有到达卖出条件的股票
-                # sale
+                max_allow_pos_pct= tm.unit_ideal_pos_pct * (1+tm.unit_pos_pct_tolerance)
+                sale_partial = pre.query(
+                    f"period_start_pos_pct>{max_allow_pos_pct}"
+                )
 
+                if sale_partial.shape[0] > 0:
+                    balance_sale_partial = (
+                        (
+                            sale["period_start_pos_pct"]
+                            - tm.unit_ideal_pos_pct
+                        )  # 超出的仓位
+                        * sale["net"]
+                    ).sum()
+                    balance = balance_sale_partial + balance
+                    balance_pos_pct = balance / cur_net
+                    self.df_sale_mfst = pd.concat([
+                        self.df_sale_mfst, sale_partial]
+                    )
+                    # 超出仓位的股票回归理想仓位
+                    pre.loc[
+                        (
+                            pre.period_start_pos_chg
+                            > tm.unit_ideal_pos_pct * tm.unit_pos_pct_tolerance
+                        ),
+                        "period_start_pos_chg",
+                    ] = tm.unit_ideal_pos_pct
+                # 上次持有，排除掉已经清仓的，过渡到，当前一期
+                cur = pre
             else:
-                balance_pct = 1
+                period = 1
+                balance = 1
+                balance_pos_pct = 1
+                cur_net = 1
+                cur = pd.DataFrame(columns=columns)
 
-            # 在买入
-            df_candi['period_start_pos_pct']=tm.unit_ideal_pos_pct
-            # df_candi['period_start_pos_pct']= 
+            # 买入新的股票
+            # 检查目前仓位是否有低于容忍百分比的股票
+            # 暂时不实现
+            # buy_partial = cur.query(
+            #     "'period_start_pos_chg'<tm.unit_ideal_pos_pct * (1-tm.unit_pos_pct_tolerance)"
 
-            pass
+            # )
+            # if buy_partial is not None and buy_partial.shape[0]>0:
+            #     # 补仓
 
-        # df = self.df_choice_equd
+            df_candidate = self.get_choice_equ_by_date(start_date)
+            df_buy_candidate = df_candidate.query(tm.buy_criterial)
 
-        return mfst
+            df_buy_candidate = df_buy_candidate[
+                ~df_buy_candidate.ticker.isin(cur.ticker)
+            ]
 
-   # 目前只实现开盘买入 
-    def __get_chg_pct_after_buy(self, x:pd.DataFrame, y:pd.DataFrame, tm:pd.DataFrame)->pd.DataFrame:
-        """计算买入后涨幅变化，增加列名 chg_pct_after_buy
+            buy_candidate_count = df_buy_candidate.shape[0]
 
-        Args:
-            x (pd.DataFrame): 持仓股票
-            y (pd.DataFrame): 股票池
-            tm (pd.DataFrame): 交易模型
+            buy_count = int(balance_pos_pct / tm.unit_ideal_pos_pct)
+            balance_pos_pct = (
+                balance_pos_pct - buy_count * tm.unit_ideal_pos_pct
+            )
+            buy_count = buy_count + (
+                1 if balance_pos_pct >= tm.mini_unit_buy_pct else 0
+            )
+            buy_count = (
+                buy_candidate_count
+                if buy_count > buy_candidate_count
+                else buy_count
+            )
 
-        Returns:
-            pd.DataFrame: 增加列名 chg_pct_after_buy
-        """        
-        x['chg_pct_after_buy'] = (y.loc[(y.ticker==x.ticker)&(y.trade_date>x.trade_date)&(y.trade_date<(x.trade_date+timedelta(tm.xperiod))),'chg_pct']+1).cumprod()
-        return x
+            df_buy_candidate = df_buy_candidate[0:buy_count]
 
-        
+            df_buy_candidate["period"] = period
+            df_buy_candidate["start_date"] = start_date
+            df_buy_candidate["end_date"] = end_date
+
+            df_buy_candidate["period_start_pos_pct"] = tm.unit_ideal_pos_pct
+            df_buy_candidate["period_start_pos_pct"].iloc[-1] = balance_pos_pct
+
+            df_buy_candidate["chg_pct_after_buy"] = 0
+            df_buy_candidate["hold_days"] = 0
+            df_buy_candidate["net"] = cur_net
+            
+
+            cur = pd.concat([cur, df_buy_candidate[df_buy_candidate.columns[2:len(df_buy_candidate.columns)]]])
+            self.df_position_mfst = pd.concat([self.df_position_mfst, cur])
+            pre = cur
+            period = period + 1
+            start_date = end_date
+
+        return self.df_position_mfst
+
     def get_trade_mfst_by_date(
-        self, trade_date:date,
+        self,
+        trade_date: date,
     ) -> pd.DataFrame:
         """产生交易清单
 
@@ -319,7 +450,7 @@ class BaseStrategy:
 
         Returns:
             pd.DataFrame: _description_
-        """    
+        """
         mfst = pd.DataFrame()
         # df = self.df_choice_equd
 
@@ -327,7 +458,7 @@ class BaseStrategy:
 
     def get_choice_equ_by_date(self, trade_date: date) -> pd.DataFrame:
         df = self.df_choice_equd
-        return df.loc["trade_date" == trade_date, :]
+        return df.loc[df.trade_date == trade_date, :]
 
     def get_roi_mfst(
         self, start_date: date, end_date: date = None
@@ -418,10 +549,14 @@ class BaseStrategy:
         pass
         return pd.DataFrame()
 
-    def get_choice_equ_metrics_by_list(self, choice:pd.DataFrame)->pd.DataFrame:
+    def get_choice_equ_metrics_by_list(
+        self, choice: pd.DataFrame
+    ) -> pd.DataFrame:
         df = self.df_choice_equd
         df.trade_date = pd.to_datetime(df.trade_date)
-        choice.ticker=choice.ticker.astype('string')
-        choice.trade_date=pd.to_datetime(choice.trade_date)
-        choice = pd.DataFrame.merge(choice, df, on=['ticker','trade_date'],how='left')
+        # choice.ticker=choice.ticker.astype('string')
+        choice.trade_date = pd.to_datetime(choice.trade_date)
+        choice = pd.DataFrame.merge(
+            choice, df, on=["ticker", "trade_date"], how="left"
+        )
         return choice

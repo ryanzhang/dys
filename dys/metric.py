@@ -7,7 +7,6 @@ from dys.alpha import Alphas
 from dys.neutralize import Neutra
 
 
-
 class m(object):
     """指标计算函数中第一个参数为固定参数，该dataframe 输入时候的排序方式是index
     输出Series的时候也一定要还原index的排序方式之后再输出,否则指标数据会错位
@@ -17,8 +16,10 @@ class m(object):
     """
 
     def neg_market_amount(df: pd.DataFrame, name, args) -> pd.DataFrame:
-        df_metric = pd.DataFrame(index = df.index)
-        df_metric[name] = (df['neg_market_value']/df['close_price']).astype(int)
+        df_metric = pd.DataFrame(index=df.index)
+        df_metric[name] = (df["neg_market_value"] / df["close_price"]).astype(
+            int
+        )
         return df_metric
 
     def momentum(df: pd.DataFrame, name, args) -> pd.DataFrame:
@@ -40,7 +41,7 @@ class m(object):
             raise Exception("momentum指标需要两个参数:1. 动量天数,2 基本日线数字指标字段")
         if args[0] < 1:
             raise Exception("计算动量因子需要大于1天")
-        df_metric = pd.DataFrame(index = df.index)
+        df_metric = pd.DataFrame(index=df.index)
         df_metric[name] = df.groupby("ticker")[args[1]].transform(
             "pct_change", periods=args[0]
         )
@@ -63,7 +64,7 @@ class m(object):
             raise Exception(
                 "list_days指标需要一个参数:1. 股票上市日期dataframe，含ticker,list_date两个列"
             )
-        df_metric = pd.DataFrame(index = df.index)
+        df_metric = pd.DataFrame(index=df.index)
         df_equ_list_info: pd.DataFrame = args[0]
 
         df_equ_list_info = df_equ_list_info[["ticker", "list_date"]]
@@ -96,17 +97,23 @@ class m(object):
         Returns:
             pd.DataFrame: _description_
         """
-        df_metric = pd.DataFrame(index = df.index)
+        df_metric = pd.DataFrame(index=df.index)
 
         # 求每日中每个股票的价格与量各自的在市场的排名值
         df_t = df.groupby("trade_date").apply(m.__price_vol_rank_rate)
         # 求价，量 排行的协方差的方向值(即协方差值*-1），协方差为负值时，它越小(即负值绝对值越大，表示背离越严重)
         df_t = df_t.groupby("ticker").apply(m._negative_cov)
-        df_t['wq_alpha16'] = df_t.groupby("trade_date")['neg_cov'].transform('rank', method='max')
-        df_metric[name] = df_t['wq_alpha16']
+        df_t["wq_alpha16"] = df_t.groupby("trade_date")["neg_cov"].transform(
+            "rank", method="max"
+        )
+        df_metric[name] = df_t["wq_alpha16"]
         # Debug inform
         logger.debug(f"Alpha016 sample数列已到处到/tmp/sample_wq_alpha16.csv")
-        df_t.loc[(df_t['ticker']=='603192') &(df_t['trade_date']==pd.to_datetime('20210104')),:].to_csv("/tmp/sample_wq_alpha16.csv")
+        df_t.loc[
+            (df_t["ticker"] == "603192")
+            & (df_t["trade_date"] == pd.to_datetime("20210104")),
+            :,
+        ].to_csv("/tmp/sample_wq_alpha16.csv")
 
         return df_metric
 
@@ -124,7 +131,7 @@ class m(object):
         if len(args) != 1:
             raise Exception("list_days指标需要一个参数:1.N 日")
 
-        df_metric = pd.DataFrame(index = df.index)
+        df_metric = pd.DataFrame(index=df.index)
 
         N = args[0]
         col_name = f"MA{N}_turnover_rate"
@@ -150,11 +157,11 @@ class m(object):
         if len(args) != 1:
             raise Exception("list_days指标需要一个参数:1.N 日")
 
-        df_metric = pd.DataFrame(index = df.index)
+        df_metric = pd.DataFrame(index=df.index)
         N = args[0]
         col_name = f"MA{N}_bias"
         df_metric = m.bias(df, col_name, [N])
-        df[col_name]=df_metric[col_name]
+        df[col_name] = df_metric[col_name]
         df[col_name] = df[col_name].fillna(df.iat[N - 1, df.shape[1] - 1])
         df = df.groupby("trade_date").apply(m.__neutralize, col_name)
         df_metric[name] = df["ntra_metric"]
@@ -180,7 +187,7 @@ class m(object):
         if len(args) != 1:
             raise Exception("bias(乖离率)指标需要一个参数:1. 均线天数")
 
-        df_metric = pd.DataFrame(index = df.index)
+        df_metric = pd.DataFrame(index=df.index)
 
         N = args[0]
         df = df.groupby("ticker").apply(m.__MA, N, "close_price")
@@ -205,7 +212,7 @@ class m(object):
         if len(args) != 1:
             raise Exception("解禁比例指标需要两个参数:1. 解禁前多少日受影响")
 
-        df_metric = pd.DataFrame(index = df.index)
+        df_metric = pd.DataFrame(index=df.index)
 
         N = args[0]
 
@@ -239,7 +246,7 @@ class m(object):
         if len(args) != 1:
             raise Exception("解禁金额指标需要两个参数:1. 天数")
 
-        df_metric = pd.DataFrame(index = df.index)
+        df_metric = pd.DataFrame(index=df.index)
         N = args[0]
 
         frN = f"float_rate_{N}"
@@ -251,10 +258,12 @@ class m(object):
             return df
 
         df = m.__calc_float_num(df, N)
-        df_metric[name] = df[fnN] * 10000 * df["close_price"] / df["neg_market_value"]
+        df_metric[name] = (
+            df[fnN] * 10000 * df["close_price"] / df["neg_market_value"]
+        )
         return df_metric
 
-    def vol_rate(df: pd.DataFrame, name, args) -> pd.DataFrame:
+    def vol_nm_rate(df: pd.DataFrame, name, args) -> pd.DataFrame:
         """N日/M日 成交量能比率，都是正浮点数，用来看是否放量, 越大越放量，越小越缩量
 
         Args:
@@ -268,13 +277,34 @@ class m(object):
         """
         if len(args) != 2:
             raise Exception("N/M日量比指标需要两个参数:1. N天数,2 M天数")
-        
-        df_metric = pd.DataFrame(index = df.index)
+
+        df_metric = pd.DataFrame(index=df.index)
         N = args[0]
         M = args[1]
         df = df.groupby("ticker").apply(m.__MA, N, "turnover_vol", 1)
         df = df.groupby("ticker").apply(m.__MA, M, "turnover_vol", 1)
         df_metric[name] = df[f"MA{N}_turnover_vol"] / df[f"MA{M}_turnover_vol"]
+        return df_metric
+
+    def vol_rate(df: pd.DataFrame, name, args) -> pd.DataFrame:
+        """N日均量同比
+
+        Args:
+            df (pd.DataFrame): _description_
+            args (_type_): _description_
+            1. N(int) 日
+
+        Returns:
+            pd.DataFrame: _description_
+        """
+        if len(args) != 1:
+            raise Exception("N/M日量比指标需要两个参数:1. N天数")
+
+        df_metric = pd.DataFrame(index=df.index)
+        N = args[0]
+        df = df.groupby("ticker").apply(m.__SUM, N, "turnover_vol", 1)
+        df = df.groupby("ticker").apply(m.__SUM, 2*N, "turnover_vol", 1)
+        df_metric[name] = df[f"SUM{N}_turnover_vol"] / (df[f"SUM{2*N}_turnover_vol"]-df[f'SUM{N}_turnover_vol'])
         return df_metric
 
     def sum_chg_pct(df: pd.DataFrame, name, args) -> pd.DataFrame:
@@ -290,8 +320,8 @@ class m(object):
 
         N = args[0]
         df = df.groupby("ticker").apply(m.__SUM, N, "chg_pct")
-        df_metric = pd.DataFrame(index = df.index)
-        df_metric[name] = df.iloc[:,-1]
+        df_metric = pd.DataFrame(index=df.index)
+        df_metric[name] = df.iloc[:, -1]
         return df_metric
 
     def ma_turnover_rate(df: pd.DataFrame, name, args) -> pd.DataFrame:
@@ -308,8 +338,8 @@ class m(object):
         N = args[0]
         df = df.groupby("ticker").apply(m.__MA, N, "turnover_rate", 1)
 
-        df_metric = pd.DataFrame(index = df.index)
-        df_metric[name] = df.iloc[:,-1]
+        df_metric = pd.DataFrame(index=df.index)
+        df_metric[name] = df.iloc[:, -1]
         return df_metric
 
     def ma_vol(df: pd.DataFrame, name, args) -> pd.DataFrame:
@@ -325,32 +355,30 @@ class m(object):
         """
         N = args[0]
         df = df.groupby("ticker").apply(m.__MA, N, "turnover_vol", 1)
-        df_metric = pd.DataFrame(index = df.index)
-        df_metric[name] = df.iloc[:,-1]
+        df_metric = pd.DataFrame(index=df.index)
+        df_metric[name] = df.iloc[:, -1]
         return df_metric
 
     # Private Method
-    def __price_vol_rank_rate(x:pd.DataFrame)->pd.DataFrame:
+    def __price_vol_rank_rate(x: pd.DataFrame) -> pd.DataFrame:
         # Alphas为网上找的一个库，可能实现有问题，因此此处改为自己实现
         # 但可参考文档以及实现方式, 因此保留下面两行注释
         # stock = Alphas(x)
         # x["alpha16"] = stock.alpha016()
-        x['highrank'] = x['highest_price'].rank()
-        x['volrank'] = x['turnover_vol'].rank()
+        x["highrank"] = x["highest_price"].rank()
+        x["volrank"] = x["turnover_vol"].rank()
         return x
 
-
-    def _negative_cov(x:pd.DataFrame, N:int=5)->pd.DataFrame:
+    def _negative_cov(x: pd.DataFrame, N: int = 5) -> pd.DataFrame:
         """取
 
         Args:
             x (_type_): _description_
-        """        
+        """
         # x['highrank'] = x['highrank'].rolling(N)
         # x['volrank'] = x['volrank'].rolling(N)
-        x['neg_cov']=-1*x['highrank'].rolling(N).cov(x['volrank'])
+        x["neg_cov"] = -1 * x["highrank"].rolling(N).cov(x["volrank"])
         return x
-
 
     def __neutralize(x: pd.DataFrame, col_name: str):
         """取一天行情为基础数据的中性化
@@ -376,7 +404,7 @@ class m(object):
         return x
 
     def __SUM(
-        x: pd.DataFrame,  N: int, col_name: str, min_periods=-1
+        x: pd.DataFrame, N: int, col_name: str, min_periods=-1
     ) -> pd.DataFrame:
         """滚动求和, 滚动顺序由x.index决定
 
@@ -390,28 +418,26 @@ class m(object):
         if min_periods == -1 or min_periods >= N:
             min_periods = N - 1
 
-        x[f'SUM{N}_{col_name}'] = (
+        x[f"SUM{N}_{col_name}"] = (
             x[col_name].rolling(N, min_periods=min_periods).sum()
         )
         return x
 
-    def __calc_float_num(
-        df: pd.DataFrame, N: int 
-    ) -> pd.DataFrame:
+    def __calc_float_num(df: pd.DataFrame, N: int) -> pd.DataFrame:
         db = DBAdaptor()
         df_float = db.get_df_by_sql("select * from stock.equ_share_float")
         fnN = f"SUM{N}_float_num"
         df_float = df_float[["sec_id", "float_date", "float_num"]]
-        df_float['sec_id'] = df_float['sec_id'].astype('string')
-        df_float['float_date'] = pd.to_datetime(df_float['float_date'])
+        df_float["sec_id"] = df_float["sec_id"].astype("string")
+        df_float["float_date"] = pd.to_datetime(df_float["float_date"])
         df_float.set_index(["sec_id", "float_date"], inplace=True)
         # df = pd.merge(df, df_float, on=["ticker", "trade_date"], how="left")
         # df["sec_id"] = df["sec_id"].astype("string")
-        df['trade_date'] = pd.to_datetime(df['trade_date'])
+        df["trade_date"] = pd.to_datetime(df["trade_date"])
         df["float_num"] = df[["sec_id", "trade_date"]].apply(tuple, axis=1)
         float_num_dict = df_float.to_dict().get("float_num")
         df["float_num"] = df["float_num"].map(float_num_dict)
-        df['float_num'] = df["float_num"].fillna(0)
+        df["float_num"] = df["float_num"].fillna(0)
         # df.to_csv("/tmp/metric_float_rate_origin.csv")
         df = (
             df.sort_values("trade_date", ascending=False)

@@ -8,9 +8,6 @@ from dys import *
 import pandas as pd
 from dys.domain import SelectMetric
 
-from tests.my_test_strategy import MyETFStrategy, MyStrategy
-
-
 given = pytest.mark.parametrize
 skipif = pytest.mark.skipif
 skip = pytest.mark.skip
@@ -32,23 +29,38 @@ class S8Strategy(BaseStrategy):
         logger.debug(f"自定义股票池{self.df_equ_pool.shape[0]}")
 
     def set_metrics(self):
-        reset_cache=False
+        reset_cache = False
         self.append_metric(
-            SelectMetric("list_days", m.list_days, self.df_equ_pool), reset_cache=reset_cache
+            SelectMetric("list_days", m.list_days, self.df_equ_pool),
+            reset_cache=reset_cache,
         )
-        self.append_metric(SelectMetric("wq_alpha16", m.wq_alpha16), reset_cache=reset_cache)
         self.append_metric(
-            SelectMetric("ntra_turnover_rate_5", m.ntra_turnover_rate, 5), reset_cache=reset_cache
+            SelectMetric("wq_alpha16", m.wq_alpha16), reset_cache=reset_cache
         )
-        reset_cache=True
-        self.append_metric(SelectMetric("float_value_60", m.float_value, 60), reset_cache=reset_cache)
         self.append_metric(
-            SelectMetric("float_rate_60", m.float_rate, 60), reset_cache=reset_cache
+            SelectMetric("ntra_turnover_rate_5", m.ntra_turnover_rate, 5),
+            reset_cache=reset_cache,
         )
-        self.append_metric(SelectMetric("ntra_bias_6", m.ntra_bias, 6), reset_cache=reset_cache)
-        self.append_metric(SelectMetric("vol_rate_5_60", m.vol_rate, 5, 60), reset_cache=reset_cache)
-        self.append_metric(SelectMetric("vol_20", m.ma_vol, 20), reset_cache=reset_cache)
-        
+        self.append_metric(
+            SelectMetric("float_value_60", m.float_value, 60),
+            reset_cache=reset_cache,
+        )
+        # reset_cache=True
+        self.append_metric(
+            SelectMetric("float_rate_60", m.float_rate, 60),
+            reset_cache=reset_cache,
+        )
+        self.append_metric(
+            SelectMetric("ntra_bias_6", m.ntra_bias, 6),
+            reset_cache=reset_cache,
+        )
+        self.append_metric(
+            SelectMetric("vol_rate_5_60", m.vol_nm_rate, 5, 60),
+            reset_cache=reset_cache,
+        )
+        self.append_metric(
+            SelectMetric("vol_20", m.ma_vol, 20), reset_cache=reset_cache
+        )
 
     def set_select_condition(self):
         """设置选股条件字符串，条件字符串按照df.query接受的语法
@@ -145,10 +157,10 @@ class TestSmall8Strategy:
         logger.info("TestCase Level Tear Down is triggered!")
 
     def test_get_rank_in_one_day(self, s8s: S8Strategy):
-        #设置股票池
+        # 设置股票池
         s8s.set_equ_pool()
         # 加载自定义指标
-        #设置选股条件
+        # 设置选股条件
         s8s.set_select_condition()
 
         df1 = s8s.df_choice_equd
@@ -170,7 +182,7 @@ class TestSmall8Strategy:
 
     def test_cov_between_my_and_guoren_on_20210114(self):
         mdf = pd.read_csv("/tmp/test_s8s_rank.csv")
-        mdf["wq16"]=mdf["wq_alpha16"].rank()
+        mdf["wq16"] = mdf["wq_alpha16"].rank()
         mdf.to_csv("/tmp/wq16.csv")
         compare_metric_list1 = [
             "ticker",
@@ -222,27 +234,27 @@ class TestSmall8Strategy:
         merge.corr(method="spearman").to_csv("/tmp/mg_compare_corr.csv")
         logger.debug("breakpoint")
 
-    def test_get_detail_metric_by_export_file(self, s8s:S8Strategy):
-        directory='/Users/rzhang/github/ryanzhang-appdev/quant-invest/dys/tests/resources/byly'
-        output_directory='/Users/rzhang/github/ryanzhang-appdev/quant-invest/dys/tests/target'
+    def test_get_detail_metric_by_export_file(self, s8s: S8Strategy):
+        directory = "/Users/rzhang/github/ryanzhang-appdev/quant-invest/dys/tests/resources/byly"
+        output_directory = "/Users/rzhang/github/ryanzhang-appdev/quant-invest/dys/tests/target"
         for filename in os.listdir(directory):
             f = os.path.join(directory, filename)
-            obf = os.path.join(output_directory, 'buy_'  + filename)
-            osf = os.path.join(output_directory, 'sale_' + filename)
+            obf = os.path.join(output_directory, "buy_" + filename)
+            osf = os.path.join(output_directory, "sale_" + filename)
             # checking if it is a file
             if os.path.isfile(f):
                 logger.debug(f"Start to process{f}")
-                choice_equ=pd.read_csv(f)
+                choice_equ = pd.read_csv(f, dtype={"ticker": object})
                 assert choice_equ is not None
-                assert choice_equ.shape[0]==10
-                assert choice_equ.shape[1]==10
-                choice_equ['trade_date'] = choice_equ['买入日期']
+                assert choice_equ.shape[0] == 10
+                assert choice_equ.shape[1] == 10
+                choice_equ["trade_date"] = choice_equ["买入日期"]
                 df = s8s.get_choice_equ_metrics_by_list(choice_equ)
-                df.to_csv(obf, encoding="GBK")
+                # df.to_csv(obf, encoding="GBK")
+                df.to_csv(obf)
                 logger.debug(f"Export buy moment metrics in {obf}")
-                choice_equ['trade_date'] = choice_equ['卖出日期']
+                choice_equ["trade_date"] = choice_equ["卖出日期"]
                 df = s8s.get_choice_equ_metrics_by_list(choice_equ)
-                df.to_csv(osf, encoding="GBK")
+                # df.to_csv(osf, encoding="GBK")
+                df.to_csv(osf)
                 logger.debug(f"Export sale moment metrics in {osf}")
-
-        
