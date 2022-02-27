@@ -85,7 +85,12 @@ class TestBaseStrategy:
         assert df1["ticker"].nunique() <= ms.df_equ_pool.shape[0]
 
     def test__add_metric_column(self, ms: MyStrategy):
+        reset_cache = True
         ms.append_metric(SelectMetric("MOM20_close_price", m.momentum, 20, "close_price"))
+        ms.append_metric(SelectMetric("float_value_60", m.float_value, 60), reset_cache=reset_cache)
+        ms.append_metric(
+            SelectMetric("float_rate_60", m.float_rate, 60), reset_cache=reset_cache
+        )
         df = ms.df_choice_equd
         assert "MOM20_close_price" in df.columns
         assert os.path.exists(ms.config.data_folder + "metrics/MOM20_close_price.paquet")
@@ -188,6 +193,33 @@ class TestBaseStrategy:
         df = ms.get_choice_equ_by_date(the_date)
         assert df is not None
         logger.debug(f'{the_date} 共选出 {df.shape[0]}')
+    
+    def test_get_choice_equd_metrics_by_list(self,ms:MyStrategy):
+        ms.append_metric(SelectMetric("MOM20_close_price", m.momentum, 20, "close_price"))
+        directory='/Users/rzhang/github/ryanzhang-appdev/quant-invest/dys/tests/resources/teststrategy'
+        output_directory='/Users/rzhang/github/ryanzhang-appdev/quant-invest/dys/tests/target'
+        for filename in os.listdir(directory):
+            f = os.path.join(directory, filename)
+            obf = os.path.join(output_directory, 'buy_'  + filename)
+            osf = os.path.join(output_directory, 'sale_' + filename)
+            # checking if it is a file
+            if os.path.isfile(f):
+                logger.debug(f"Start to process{f}")
+                choice_equ=pd.read_csv(f)
+                assert choice_equ is not None
+                assert choice_equ.shape[0]==2
+                assert choice_equ.shape[1]==10
+                choice_equ['trade_date'] = choice_equ['买入日期']
+                df = ms.get_choice_equ_metrics_by_list(choice_equ)
+                df.to_csv(obf, encoding="GBK")
+                logger.debug(f"Export buy moment metrics in {obf}")
+                choice_equ['trade_date'] = choice_equ['卖出日期']
+                df = ms.get_choice_equ_metrics_by_list(choice_equ)
+                df.to_csv(osf, encoding="GBK")
+                logger.debug(f"Export sale moment metrics in {osf}")
+
+
+        
 
     def test_generate_trade_mfst(self, my: MyStrategy):
         mfst = my.generate_trade_mfst()

@@ -14,7 +14,7 @@ If you want to replace this with a Flask application run:
 and then choose `flask` as template.
 """
 
-from datetime import date
+from datetime import date, timedelta
 import os
 from typing import Any, Iterable, List
 
@@ -29,7 +29,7 @@ from dys.stockutil import StockUtil
 # By default 120 tradeable days between 2009-07-09 to 2020-12-31
 # New k data can be append since 2022-01-04
 DEFAULT_TOTAL_START_DATE= '20090709'
-DEFAULT_TOTAL_END_DATE='20211231'
+DEFAULT_TOTAL_END_DATE='20220223'
 class BaseStrategy:
     def __init__(self,  start_date: str = DEFAULT_TOTAL_START_DATE, end_date: str= DEFAULT_TOTAL_END_DATE, trade_type: int = 0 ):
         logger.info("Construct dys Base")
@@ -46,10 +46,12 @@ class BaseStrategy:
         self.trade_model = None
         self.rank_factors = None
         # self.select_metrics = None
-        self.df_metrics = None
+        self.df_metrics:List(str) = list()
 
         self.mkt_timing_algo = None
         # 历史持仓
+        self.df_position = None
+        # 历史卖出清单
         self.df_position = None
         # 过滤出来的股票池
         self.df_choice_equd = None
@@ -137,6 +139,7 @@ class BaseStrategy:
 
     def append_metric(self, sm: SelectMetric, reset_cache:bool=False):
         self.df_choice_equd[sm.name] = self.__add_metric_column(sm, reset_cache)
+        self.df_metrics.append(sm.name)
 
         # Debug information
         if self.debug_sample_date is not None:
@@ -243,7 +246,7 @@ class BaseStrategy:
 
         return df
 
-    def generate_trade_mfst(
+    def generate_position_mfst(
         self
     ) -> pd.DataFrame:
         """产生交易清单
@@ -256,10 +259,55 @@ class BaseStrategy:
             pd.DataFrame: _description_
         """    
         mfst = pd.DataFrame()
+        tm:TradeModel = self.trade_model
+        trade_dates:pd.Series = StockUtil().get_trade_dates_by_range(self.start, self.end)
+        columns = ["sec_short_name","ticker","industry1","industry2","pre_close_price","act_pre_close_price", "open_price","close_price","chg_pct"]
+        columns.extend(self.metrics)
+        columns.extend(['period_start_pos_pct','chg_pct_after_buy','hold_days'])
+        pre = None
+        for index, td in trade_dates.iteritems():
+            cur = pd.DataFrame(columns=columns)
+
+            df_candi=self.get_choice_equ_by_date(td-timedelta(1))
+            df_candidate=df_candidate.query(tm.buy_criterial)
+            # 先判断卖出
+            if pre is not None:
+                pre = pre.apply(self.get_chg_pct_after_buy, self.df_choice_equd, self.trade_model)
+                # Check Sale condition
+                sale = pre.query(tm.sale_criterial)
+                balance = sale['chg_pct_after_buy']*(1-self.trade_model.sale_fee_rate)*sale['period_start_pos_pct']
+                # 检查是否有超出边界 但是没有到达卖出条件的股票
+                # sale
+
+            else:
+                balance_pct = 1
+
+            # 在买入
+            df_candi['period_start_pos_pct']=tm.unit_ideal_pos_pct
+            # df_candi['period_start_pos_pct']= 
+
+            pass
+
         # df = self.df_choice_equd
 
         return mfst
 
+   # 目前只实现开盘买入 
+    def __get_chg_pct_after_buy(self, x:pd.DataFrame, y:pd.DataFrame, tm:pd.DataFrame)->pd.DataFrame:
+        """计算买入后涨幅变化，增加列名 chg_pct_after_buy
+
+        Args:
+            x (pd.DataFrame): 持仓股票
+            y (pd.DataFrame): 股票池
+            tm (pd.DataFrame): 交易模型
+
+        Returns:
+            pd.DataFrame: 增加列名 chg_pct_after_buy
+        """        
+        x['chg_pct_after_buy'] = (y.loc[(y.ticker==x.ticker)&(y.trade_date>x.trade_date)&(y.trade_date<(x.trade_date+timedelta(tm.xperiod))),'chg_pct']+1).cumprod()
+        return x
+
+        
     def get_trade_mfst_by_date(
         self, trade_date:date,
     ) -> pd.DataFrame:
@@ -369,3 +417,11 @@ class BaseStrategy:
         logger.debug("收益曲线已经显示")
         pass
         return pd.DataFrame()
+
+    def get_choice_equ_metrics_by_list(self, choice:pd.DataFrame)->pd.DataFrame:
+        df = self.df_choice_equd
+        df.trade_date = pd.to_datetime(df.trade_date)
+        choice.ticker=choice.ticker.astype('string')
+        choice.trade_date=pd.to_datetime(choice.trade_date)
+        choice = pd.DataFrame.merge(choice, df, on=['ticker','trade_date'],how='left')
+        return choice

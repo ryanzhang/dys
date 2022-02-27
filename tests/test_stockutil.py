@@ -56,3 +56,9 @@ class TestStockUtil:
         ret =  util.get_trade_date_by_offset(date(2020,1,4), 120)
         logger.info(f'2020-1-4前120交易日{ret}') 
 
+    def test_trade_date_by_range(self, util:StockUtil):
+        trade_series = util.get_trade_date_by_range(date(2021,1,4), date(2021,12,31))
+        assert trade_series.iloc[0] == date(2021,1,4)
+        assert trade_series.iloc[-1] == date(2021,12,31)
+        logger.debug(f'共{trade_series.shape[0]}交易日')
+

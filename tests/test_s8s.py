@@ -1,4 +1,5 @@
 from datetime import date
+import os
 import pytest
 from kupy.dbadaptor import DBAdaptor
 from kupy.logger import logger
@@ -31,20 +32,22 @@ class S8Strategy(BaseStrategy):
         logger.debug(f"自定义股票池{self.df_equ_pool.shape[0]}")
 
     def set_metrics(self):
+        reset_cache=False
         self.append_metric(
-            SelectMetric("list_days", m.list_days, self.df_equ_pool)
+            SelectMetric("list_days", m.list_days, self.df_equ_pool), reset_cache=reset_cache
         )
-        self.append_metric(SelectMetric("wq_alpha16", m.wq_alpha16))
+        self.append_metric(SelectMetric("wq_alpha16", m.wq_alpha16), reset_cache=reset_cache)
         self.append_metric(
-            SelectMetric("ntra_turnover_rate_5", m.ntra_turnover_rate, 5)
+            SelectMetric("ntra_turnover_rate_5", m.ntra_turnover_rate, 5), reset_cache=reset_cache
         )
-        # self.append_metric(SelectMetric("float_value_60", m.float_value, 60, df_float))
+        reset_cache=True
+        self.append_metric(SelectMetric("float_value_60", m.float_value, 60), reset_cache=reset_cache)
         self.append_metric(
-            SelectMetric("float_rate_60", m.float_rate, 60)
+            SelectMetric("float_rate_60", m.float_rate, 60), reset_cache=reset_cache
         )
-        self.append_metric(SelectMetric("ntra_bias_6", m.ntra_bias, 6))
-        self.append_metric(SelectMetric("vol_rate_5_60", m.vol_rate, 5, 60))
-        # self.append_metric(SelectMetric("vol_20", m.ma_vol, 20))
+        self.append_metric(SelectMetric("ntra_bias_6", m.ntra_bias, 6), reset_cache=reset_cache)
+        self.append_metric(SelectMetric("vol_rate_5_60", m.vol_rate, 5, 60), reset_cache=reset_cache)
+        self.append_metric(SelectMetric("vol_20", m.ma_vol, 20), reset_cache=reset_cache)
         
 
     def set_select_condition(self):
@@ -218,3 +221,28 @@ class TestSmall8Strategy:
         merge.to_csv("/tmp/mg_compare_result.csv")
         merge.corr(method="spearman").to_csv("/tmp/mg_compare_corr.csv")
         logger.debug("breakpoint")
+
+    def test_get_detail_metric_by_export_file(self, s8s:S8Strategy):
+        directory='/Users/rzhang/github/ryanzhang-appdev/quant-invest/dys/tests/resources/byly'
+        output_directory='/Users/rzhang/github/ryanzhang-appdev/quant-invest/dys/tests/target'
+        for filename in os.listdir(directory):
+            f = os.path.join(directory, filename)
+            obf = os.path.join(output_directory, 'buy_'  + filename)
+            osf = os.path.join(output_directory, 'sale_' + filename)
+            # checking if it is a file
+            if os.path.isfile(f):
+                logger.debug(f"Start to process{f}")
+                choice_equ=pd.read_csv(f)
+                assert choice_equ is not None
+                assert choice_equ.shape[0]==10
+                assert choice_equ.shape[1]==10
+                choice_equ['trade_date'] = choice_equ['买入日期']
+                df = s8s.get_choice_equ_metrics_by_list(choice_equ)
+                df.to_csv(obf, encoding="GBK")
+                logger.debug(f"Export buy moment metrics in {obf}")
+                choice_equ['trade_date'] = choice_equ['卖出日期']
+                df = s8s.get_choice_equ_metrics_by_list(choice_equ)
+                df.to_csv(osf, encoding="GBK")
+                logger.debug(f"Export sale moment metrics in {osf}")
+
+        

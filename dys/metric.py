@@ -215,7 +215,7 @@ class m(object):
 
         if frN in df.columns:
             df[fvN] = df[frN] * df["neg_market_value"]
-            return df[fvN]
+            return df
 
         df = m.__calc_float_num(df, N)
         df_metric[name] = df[fnN] * 10000 * df["close_price"]
@@ -248,7 +248,7 @@ class m(object):
 
         if fvN in df.columns:
             df[frN] = df[fvN] / df["neg_market_value"]
-            return df[frN]
+            return df
 
         df = m.__calc_float_num(df, N)
         df_metric[name] = df[fnN] * 10000 * df["close_price"] / df["neg_market_value"]
