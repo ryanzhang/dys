@@ -31,6 +31,10 @@ class S8Strategy(BaseStrategy):
     def set_metrics(self):
         reset_cache = False
         self.append_metric(
+            SelectMetric("ma5_vol_rate", m.vol_rate, 5),
+            reset_cache=reset_cache,
+        )
+        self.append_metric(
             SelectMetric("list_days", m.list_days, self.df_equ_pool),
             reset_cache=reset_cache,
         )
@@ -42,11 +46,6 @@ class S8Strategy(BaseStrategy):
             reset_cache=reset_cache,
         )
         self.append_metric(
-            SelectMetric("float_value_60", m.float_value, 60),
-            reset_cache=reset_cache,
-        )
-        # reset_cache=True
-        self.append_metric(
             SelectMetric("float_rate_60", m.float_rate, 60),
             reset_cache=reset_cache,
         )
@@ -55,11 +54,16 @@ class S8Strategy(BaseStrategy):
             reset_cache=reset_cache,
         )
         self.append_metric(
-            SelectMetric("vol_rate_5_60", m.vol_nm_rate, 5, 60),
+            SelectMetric("ntra_bias_20", m.ntra_bias, 20),
             reset_cache=reset_cache,
         )
         self.append_metric(
-            SelectMetric("vol_20", m.ma_vol, 20), reset_cache=reset_cache
+            SelectMetric("bias_6", m.ntra_bias, 6),
+            reset_cache=reset_cache,
+        )
+        self.append_metric(
+            SelectMetric("vol_rate_5_60", m.vol_nm_rate, 5, 60),
+            reset_cache=reset_cache,
         )
 
     def set_select_condition(self):
@@ -77,7 +81,11 @@ class S8Strategy(BaseStrategy):
         self.append_select_condition(
             "not sec_short_name.str.startswith('*ST')"
         )
+        # 排除将要退市股票
+        self.append_select_condition("not sec_short_name.str.startswith('退市')")
+        self.append_select_condition("not sec_short_name.str.endswith('退')")
         self.append_select_condition("not sec_short_name.str.startswith('ST')")
+        self.append_select_condition("not sec_short_name.str.startswith('*ST')")
         self.append_select_condition("open_price > 0")
         # 排除科创
         self.append_select_condition("neg_market_value < 2000000000")
@@ -118,9 +126,6 @@ class S8Strategy(BaseStrategy):
         self.append_rankfactor(
             RankFactor(name="vol_rate_5_60", bigfirst=False, weight=1)
         )
-        # self.append_rankfactor(
-        #     RankFactor(name="vol_20", bigfirst=False, weight=1)
-        # )
 
         return True
 
@@ -133,7 +138,22 @@ class S8Strategy(BaseStrategy):
         Returns:
             bool: _description_
         """
-        self.trade_model = TradeModel()
+        self.trade_model = TradeModel(
+            xperiod=5,
+            xtiming=1,
+            bench_num=5,
+            unit_ideal_pos_pct=15 / 100,
+            unit_pos_pct_tolerance=30 / 100,
+            mini_unit_buy_pct=1 / 100,
+            buy_fee_rate=0,
+            sale_fee_rate=2 / 1000,
+        )
+        self.trade_model.append_buy_criterial("rank<=8")
+        self.trade_model.append_buy_criterial("chg_pct>-0.098")
+        self.trade_model.append_sale_criterial("sec_short_name.str.startswith('*ST')")
+        self.trade_model.append_sale_criterial("ma5_vol_rate>3")
+        self.trade_model.append_sale_criterial("rank >= 34")
+        self.trade_model.append_notsale_criterial("chg_pct > 0.098")
         logger.debug(f"交易模型已经设定{self.trade_model}")
         return True
 
@@ -179,6 +199,29 @@ class TestSmall8Strategy:
         df2_sample.reset_index(inplace=True)
         df2_sample["ticker"] = df2_sample["sec_id"].str[0:6]
         df2_sample.to_csv("/tmp/test_s8s_rank.csv")
+
+    def test_get_position_mfst(self, s8s: S8Strategy):
+        s8s.set_equ_pool()
+        s8s.set_select_condition()
+        s8s.select_equd_by_date(
+            start_date=date(2010, 1, 4), end_date=date(2021, 12, 31)
+        )
+        s8s.set_rank_factors()
+        s8s.rank()
+        s8s.set_trade_model()
+        s8s.generate_position_mfst()
+        mfst = s8s.get_fmt_position_mfst()
+
+        assert mfst is not None
+
+        max_drawback = s8s.get_history_max_drawdown()
+        logger.info(f"最大回撤:{max_drawback}")
+        mfst.to_csv(
+            "/tmp/test_s8s_position_mfst.csv"
+        )
+        s8s.df_sale_mfst.to_csv(
+            "/tmp/test_s8s_sale_mfst.csv"
+        )
 
     def test_cov_between_my_and_guoren_on_20210114(self):
         mdf = pd.read_csv("/tmp/test_s8s_rank.csv")
@@ -233,28 +276,3 @@ class TestSmall8Strategy:
         merge.to_csv("/tmp/mg_compare_result.csv")
         merge.corr(method="spearman").to_csv("/tmp/mg_compare_corr.csv")
         logger.debug("breakpoint")
-
-    def test_get_detail_metric_by_export_file(self, s8s: S8Strategy):
-        directory = "/Users/rzhang/github/ryanzhang-appdev/quant-invest/dys/tests/resources/byly"
-        output_directory = "/Users/rzhang/github/ryanzhang-appdev/quant-invest/dys/tests/target"
-        for filename in os.listdir(directory):
-            f = os.path.join(directory, filename)
-            obf = os.path.join(output_directory, "buy_" + filename)
-            osf = os.path.join(output_directory, "sale_" + filename)
-            # checking if it is a file
-            if os.path.isfile(f):
-                logger.debug(f"Start to process{f}")
-                choice_equ = pd.read_csv(f, dtype={"ticker": object})
-                assert choice_equ is not None
-                assert choice_equ.shape[0] == 10
-                assert choice_equ.shape[1] == 10
-                choice_equ["trade_date"] = choice_equ["买入日期"]
-                df = s8s.get_choice_equ_metrics_by_list(choice_equ)
-                # df.to_csv(obf, encoding="GBK")
-                df.to_csv(obf)
-                logger.debug(f"Export buy moment metrics in {obf}")
-                choice_equ["trade_date"] = choice_equ["卖出日期"]
-                df = s8s.get_choice_equ_metrics_by_list(choice_equ)
-                # df.to_csv(osf, encoding="GBK")
-                df.to_csv(osf)
-                logger.debug(f"Export sale moment metrics in {osf}")

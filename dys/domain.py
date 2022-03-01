@@ -92,7 +92,9 @@ class TradeModel:
         if self.notsale_criterial is None:
             self.notsale_criterial = query_string
         else:
-            self.notsale_criterial = self.notsale_criterial + " or " + query_string
+            self.notsale_criterial = (
+                self.notsale_criterial + " or " + query_string
+            )
         pass
 
 

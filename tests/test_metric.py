@@ -192,3 +192,25 @@ class TestMetrics:
         df = df.join(df_metric)
         assert sm.name in df.columns
         assert df[sm.name].notna().all()
+
+    def test_rank(self, df: pd.DataFrame):
+        # sm = SelectMetric(f"turnover_rate_5", m.ma_turnover_rate, N)
+        # df_metric1 = sm.apply(df,sm.name, sm.args)
+        # df = df.join(df_metric1 )
+        N = 5
+        # sm = SelectMetric(f"turnover_rate_5", m.ma_turnover_rate, N)
+        # df_metric1 = sm.apply(df,sm.name, sm.args)
+        # df = df.join(df_metric1 )
+
+        sm2 = SelectMetric("ntra_turnover_rate_5", m.ntra_turnover_rate, N)
+        df_metric2 = sm2.apply(df, sm2.name, sm2.args)
+        df = df.join(df_metric2)
+        assert sm2.name in df.columns
+
+        sm = SelectMetric(
+            "ntra_turnover_rate_5_rank", m.rank, "ntra_turnover_rate_5", True
+        )
+        df_metric = sm.apply(df, sm.name, sm.args)
+        df = df.join(df_metric)
+        assert sm.name in df.columns
+        assert df[sm.name].notna().all()

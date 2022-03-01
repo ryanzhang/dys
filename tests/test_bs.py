@@ -13,6 +13,7 @@ skipif = pytest.mark.skipif
 skip = pytest.mark.skip
 xfail = pytest.mark.xfail
 
+
 class MyStrategy(BaseStrategy):
     def __init__(self, start_date: str = None, end_date: str = None):
         if start_date is not None and end_date is not None:
@@ -112,15 +113,16 @@ class MyStrategy(BaseStrategy):
         self.trade_model = TradeModel(
             xperiod=5,
             xtiming=1,
-            bench_num = 5,
-            unit_ideal_pos_pct = 15/100,
-            unit_pos_pct_tolerance = 30/100,
-            mini_unit_buy_pct = 1/100,
-            buy_fee_rate = 0.3/1000,
-            sale_fee_rate = 2/1000
+            bench_num=5,
+            unit_ideal_pos_pct=15 / 100,
+            unit_pos_pct_tolerance=30 / 100,
+            mini_unit_buy_pct=1 / 100,
+            buy_fee_rate=0.3 / 1000,
+            sale_fee_rate=2 / 1000,
         )
         self.trade_model.append_buy_criterial("rank<=8")
         self.trade_model.append_buy_criterial("chg_pct>-0.098")
+        self.trade_model.append_buy_criterial("sale_days>=3")
         self.trade_model.append_sale_criterial("ma5_vol_rate>3")
         self.trade_model.append_sale_criterial("rank >= 34")
         self.trade_model.append_notsale_criterial("chg_pct > 0.098")
@@ -132,6 +134,7 @@ class MyETFStrategy(BaseStrategy):
     def __init__(self):
         BaseStrategy.__init__(self, trade_type=1)
         logger.debug("Construct MyETFStrategy")
+
 
 class TestBaseStrategy:
     # 加载一年的数据，并加载120天的margin 用于计算指标
@@ -360,15 +363,20 @@ class TestBaseStrategy:
     def test_generate_position_mfst(self, ms: MyStrategy):
         ms.set_equ_pool()
         ms.set_select_condition()
-        ms.select_equd_by_date(start_date = date(2021,1,4), end_date = date(2021,12,31))
+        ms.select_equd_by_date(
+            start_date=date(2021, 1, 4), end_date=date(2021, 12, 31)
+        )
         ms.set_rank_factors()
         ms.rank()
         ms.set_trade_model()
-        mfst = ms.generate_position_mfst()
+        ms.generate_position_mfst()
+        mfst = ms.get_fmt_position_mfst()
+        max_drawback = ms.get_history_max_drawdown()
         assert mfst is not None
         mfst.to_csv("/tmp/test_ms_position_mfst.csv")
         ms.df_sale_mfst.to_csv("/tmp/test_ms_sale_mfst.csv")
-        logger.debug(mfst)
+        # logger.debug(mfst)
+        logger.info(f"最大回撤:{max_drawback}")
 
     def test_get_trade_mfst_by_date(self, ms: MyStrategy):
         the_date = date(2021, 1, 5)

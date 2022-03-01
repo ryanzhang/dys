@@ -303,8 +303,10 @@ class m(object):
         df_metric = pd.DataFrame(index=df.index)
         N = args[0]
         df = df.groupby("ticker").apply(m.__SUM, N, "turnover_vol", 1)
-        df = df.groupby("ticker").apply(m.__SUM, 2*N, "turnover_vol", 1)
-        df_metric[name] = df[f"SUM{N}_turnover_vol"] / (df[f"SUM{2*N}_turnover_vol"]-df[f'SUM{N}_turnover_vol'])
+        df = df.groupby("ticker").apply(m.__SUM, 2 * N, "turnover_vol", 1)
+        df_metric[name] = df[f"SUM{N}_turnover_vol"] / (
+            df[f"SUM{2*N}_turnover_vol"] - df[f"SUM{N}_turnover_vol"]
+        )
         return df_metric
 
     def sum_chg_pct(df: pd.DataFrame, name, args) -> pd.DataFrame:
@@ -357,6 +359,25 @@ class m(object):
         df = df.groupby("ticker").apply(m.__MA, N, "turnover_vol", 1)
         df_metric = pd.DataFrame(index=df.index)
         df_metric[name] = df.iloc[:, -1]
+        return df_metric
+
+    def rank(df: pd.DataFrame, name, args) -> pd.DataFrame:
+        """N日平均成交量 包含当前日
+
+        Args:
+            df (pd.DataFrame): _description_
+            args (_type_): _description_
+            1. N日区间
+
+        Returns:
+            pd.DataFrame: _description_
+        """
+        col_name = args[0]
+        smallfirst = args[1]
+        df_metric = pd.DataFrame(index=df.index)
+        df_metric[name] = df.groupby("trade_date")[col_name].transform(
+            "rank", ascending=smallfirst
+        )
         return df_metric
 
     # Private Method
