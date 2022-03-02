@@ -1,7 +1,6 @@
 from datetime import date
 import os
 import pytest
-from kupy.dbadaptor import DBAdaptor
 from kupy.logger import logger
 
 from dys import *
@@ -79,8 +78,12 @@ class S8Strategy(BaseStrategy):
         # 1个亿= 100000000
         # 排除ST
         # 排除将要退市股票
-        self.append_select_condition("not sec_short_name.str.contains(pat = '退')")
-        self.append_select_condition("not sec_short_name.str.contains(pat = 'S')")
+        self.append_select_condition(
+            "not sec_short_name.str.contains(pat = '退')"
+        )
+        self.append_select_condition(
+            "not sec_short_name.str.contains(pat = 'S')"
+        )
         self.append_select_condition("open_price > 0")
         # 排除科创
         self.append_select_condition("neg_market_value < 2000000000")
@@ -145,15 +148,10 @@ class S8Strategy(BaseStrategy):
         )
         self.trade_model.append_buy_criterial("rank<=8")
         self.trade_model.append_buy_criterial("chg_pct>-0.098")
-        self.trade_model.append_sale_criterial(
-            "sec_short_name.str.contains(pat = 'ST')"
-        )
-        self.trade_model.append_sale_criterial(
-            "sec_short_name.str.contains('退')"
-        )
         self.trade_model.append_sale_criterial("ma5_vol_rate>3")
         self.trade_model.append_sale_criterial("rank >= 34")
         self.trade_model.append_notsale_criterial("chg_pct > 0.098")
+        self.trade_model.append_notsale_criterial("open_price == 0")
         logger.debug(f"交易模型已经设定{self.trade_model}")
         return True
 
@@ -201,13 +199,11 @@ class TestSmall8Strategy:
         df2_sample.to_csv("/tmp/test_s8s_rank.csv")
 
     def test_get_position_mfst(self, s8s: S8Strategy):
-        start_date = date(2010, 1, 4)
+        start_date = date(2021, 1, 4)
         end_date = date(2021, 12, 31)
         s8s.set_equ_pool()
         s8s.set_select_condition()
-        s8s.select_equd_by_date(
-            start_date=start_date, end_date=end_date
-        )
+        s8s.select_equd_by_date(start_date=start_date, end_date=end_date)
         s8s.set_rank_factors()
         s8s.rank()
         s8s.set_trade_model()

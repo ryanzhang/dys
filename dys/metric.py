@@ -3,7 +3,6 @@ import traceback
 import pandas as pd
 from kupy import *
 
-from dys.alpha import Alphas
 from dys.neutralize import Neutra
 
 

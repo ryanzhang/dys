@@ -15,9 +15,10 @@ and then choose `flask` as template.
 """
 
 import os
+import warnings
 from datetime import date, timedelta
 from typing import Any, Iterable, List
-import warnings
+
 import pandas as pd
 from kupy.config import configs
 from kupy.dbadaptor import DBAdaptor
@@ -26,7 +27,7 @@ from kupy.logger import logger
 from dys.domain import RankFactor, SelectMetric, StrategyConfig, TradeModel
 from dys.stockutil import StockUtil
 
-warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 # By default 120 tradeable days between 2009-07-09 to 2020-12-31
 # New k data can be append since 2022-01-04
@@ -202,7 +203,14 @@ class BaseStrategy:
         self.rank_factors.extend(rfs)
 
     def rank(self) -> pd.DataFrame:
-        # 再次根据时间过滤一次日线数据 ，因为之前可能考虑了计算指标时候的margin 数据要去除
+        """对历史所有日期到的自选股列表进行排序
+
+        Raises:
+            Exception: _description_
+
+        Returns:
+            pd.DataFrame: _description_
+        """
 
         df: pd.DataFrame = self.df_choice_equd
         df["rank"] = 0
@@ -246,6 +254,52 @@ class BaseStrategy:
             ]
             logger.debug(f"排序已完成, {self.debug_sample_date}  指标值: {df}")
         logger.debug(f"选好的股票已经排序")
+        return df
+
+    def rank_oneday(self, df: pd.DataFrame) -> pd.DataFrame:
+        """对给定的dataframe 里面的元素进行排序, 不是针对全量日期
+
+        Raises:
+            Exception: _description_
+
+        Returns:
+            pd.DataFrame: _description_
+        """
+
+        df["rank"] = 0
+        tw = 0
+        for rf in self.rank_factors:
+            if rf.name not in df.columns:
+                raise Exception(
+                    f"排序因子{rf.name}无法在df_choice_equd的列中找到:{df.columns}"
+                )
+            subrank_column = rf.name + "_subrank"
+            df[subrank_column] = (
+                df[rf.name].transform(
+                    "rank", ascending=rf.bigfirst, pct=True, method="max"
+                )
+                * 100
+            )
+            df["rank"] = df["rank"] + df[subrank_column] * rf.weight
+            tw = tw + rf.weight
+
+        df["rank"] = df["rank"] / tw
+
+        # 转换为百分制
+        df["xrank"] = (
+            df["rank"].transform(
+                "rank", ascending=True, pct=True, method="max"
+            )
+            * 100
+        )
+        df["rank"] = df["xrank"].transform(
+            "rank",
+            ascending=False,
+        )
+
+        df.sort_values(["trade_date", "xrank"], ascending=False, inplace=True)
+
+        logger.debug(f"选好的股票已经排序完成")
         return df
 
     def select_equd_by_date(
@@ -331,88 +385,71 @@ class BaseStrategy:
                 pre["hold_days"] = pre["hold_days"] + tm.xperiod
                 pre["period_pre_start_close_price"] = pre["close_price"]
 
-                update_pre_equd = self.df_choice_equd.loc[
-                    (self.df_choice_equd.ticker.isin(pre.ticker))
-                    & (self.df_choice_equd.trade_date == start_date),
-                    self.df_choice_equd.columns[
-                        2 : len(self.df_choice_equd.columns)
-                    ],
+                # 判断是否出现不在自选股K线池里面
+                # 当日自选股
+                cur_choice_equd = self.df_choice_equd.loc[
+                    self.df_choice_equd.trade_date == start_date, :
                 ]
+                not_in_choice_equd_appear = (
+                    pre.loc[
+                        (~pre.ticker.isin(cur_choice_equd.ticker)), :
+                    ].shape[0]
+                    > 0
+                )
 
-                # 是否出现停牌股票
-                not_in_choice_appear = False
-                if pre.shape[0] > update_pre_equd.shape[0]:
-                    # 出现了停牌的股票, 需要特殊处理
-                    not_in_choice_appear = True
-                    not_in_choice_equ = pre[
-                        ~pre.ticker.isin(update_pre_equd.ticker)
+                if not_in_choice_equd_appear:
+                    # 取得当日自选股的equd行情(带指标），然后加入持仓股进入自选股
+                    # 需要重新排序
+                    not_in_choice_equd = self.df_equd_pool.loc[
+                        (self.df_equd_pool.ticker.isin(pre.ticker))
+                        & (
+                            ~self.df_equd_pool.ticker.isin(
+                                cur_choice_equd.ticker
+                            )
+                        )
+                        & (self.df_equd_pool.trade_date == start_date),
+                        :,
                     ]
-                    logger.debug(
-                        f"出现ST股票，已经无法在指标选股列表中找到行情数据{not_in_choice_equ[['trade_date','sec_short_name']]}"
-                    )
-                    # not_in_choice_equ["close_price"] = not_in_choice_equ[
-                    # "period_pre_start_close_price"
-                    # ]
-                    not_in_choice_equ.loc[:, "open_price"] = 0
-                    not_in_choice_equ.loc[:, "highest_price"] = 0
-                    not_in_choice_equ.loc[:, "lowest_price"] = 0
+                    if not_in_choice_equd.shape[0] > 0:
+                        logger.debug(
+                            f"出现不在自选股K线池, 但是已经持仓的股票里面{not_in_choice_equd.trade_date} {not_in_choice_equd.sec_short_name}"
+                        )
+                        # 加入当日的自选股，因为已经持有
+                        cur_choice_equd = pd.concat(
+                            [cur_choice_equd, not_in_choice_equd]
+                        )
+                        # 对当日重新排名
+                        cur_choice_equd = self.rank_oneday(cur_choice_equd)
 
-                    # pre = pre[pre.ticker.isin(update_pre_equd.ticker)]
+                update_pre_equd = cur_choice_equd.loc[
+                    cur_choice_equd.ticker.isin(pre.ticker),
+                    cur_choice_equd.columns[2 : len(cur_choice_equd.columns)],
+                ]
 
                 pre.drop(
                     pre.columns[11 : len(pre.columns)], axis=1, inplace=True
                 )
 
-                if not_in_choice_appear:
-                    # 直接从最大的股票池里面加载数据 并且强制表示为*ST
-                    update_not_in_choice_equ = self.df_equd_pool.loc[
-                        (
-                            self.df_equd_pool.ticker.isin(
-                                not_in_choice_equ.ticker
-                            )
-                        )
-                        & (self.df_equd_pool.trade_date == start_date),
-                        self.df_equd_pool.columns[
-                            2 : len(self.df_equd_pool.columns)
-                        ],
-                    ]
-                    #下面不需要，系统会自动标
-                    # 如果 因为什么原因没有表*ST，我们强制标*ST 以此做为标记要卖出
-                    # update_not_in_choice_equ.loc[
-                    #     ~update_not_in_choice_equ[
-                    #         "sec_short_name"
-                    #     ].str.startswith("*ST"),
-                    #     "sec_short_name",
-                    # ] = (
-                    #     "*ST" + update_not_in_choice_equ["sec_short_name"]
-                    # )
-                    update_pre_equd = pd.concat(
-                        [update_pre_equd, update_not_in_choice_equ]
-                    )
-                    # pre = pd.merge(pre, update_not_in_choice_equ, on="ticker", how="left")
-
                 pre = pd.merge(pre, update_pre_equd, on="ticker", how="left")
-                if not_in_choice_appear:
-                    # 真正停牌的股票，而非ST的股票，在大池里也是找不到当日行情
-                    pre.loc[(pre.open_price.isna()) | (pre.open_price==0), "close_price"] = pre["period_pre_start_close_price"]
-                    pre.loc[(pre.open_price.isna()) | (pre.open_price==0), "sec_short_name"] = "当日停牌"
 
-                # not_in_choice_equ = pd.merge(not_in_choice_equ, update_not_in_choice_equ, on='ticker', how = 'left')
-                # sale_nice = not_in_choice_equ[not_in_choice_equ.open_price>0]
+                if pre.shape[0] > update_pre_equd.shape[0]:
+                    # 出现了停牌的股票, 需要特殊处理
+                    suspend_appear = True
+                    suspend_pos = pre[~pre.ticker.isin(update_pre_equd.ticker)]
+                    logger.debug(
+                        f"出现停牌股票，{suspend_pos[['start_date','ticker']]}"
+                    )
 
-                # if sale_nice.shape[0]>0:
-                #     # 空出仓位值
-                #     balance: float = (
-                #         sale_nice["period_start_pos_pct"]
-                #         * sale_nice["net"]
-                #         * (sale_nice['close_price']/sale_nice['period_pre_start_close_price'] -1)
-                #         * (1 - tm.sale_fee_rate)
-                #     ).sum() + balance
-                # # 被迫持有停盘股票，等待下一个周期 检查
-                # cant_sale_nice = not_in_choice_equ[not_in_choice_equ.open_price==0]
-                # pre = pd.merge(pre, cant_sale_nice, on="ticker", how="left")
-
-                # update_not_in_choice_equ = update_not_in_choice_equ[update_not_in_choice_equ.open_price>0]
+                    # 手动设置close_price 而不能是0 因为要计算净值
+                    pre.loc[
+                        (pre.open_price.isna()) | (pre.open_price == 0),
+                        "close_price",
+                    ] = pre["period_pre_start_close_price"]
+                    pre.loc[
+                        (pre.open_price.isna()) | (pre.open_price == 0),
+                        "sec_short_name",
+                    ] = "当日停牌"
+                    pre.loc[pre.open_price.isna(), "open_price"] = 0
 
                 # 统计上个周期的涨跌幅
                 pre["period_pre_chg_pct"] = (
@@ -451,10 +488,17 @@ class BaseStrategy:
 
                 # 空出仓位值
                 sum_sale_trans_fee = (
-                    sale["period_start_pos_pct"] * tm.sale_fee_rate * pre_net * (1 + pre['period_pre_chg_pct'])
+                    sale["period_start_pos_pct"]
+                    * tm.sale_fee_rate
+                    * pre_net
+                    * (1 + pre["period_pre_chg_pct"])
                 ).sum()
                 balance: float = (
-                    (sale["period_start_pos_pct"] * pre_net * (1 + pre['period_pre_chg_pct'])).sum()
+                    (
+                        sale["period_start_pos_pct"]
+                        * pre_net
+                        * (1 + pre["period_pre_chg_pct"])
+                    ).sum()
                     + balance
                     - sum_sale_trans_fee
                 )
@@ -511,7 +555,7 @@ class BaseStrategy:
                         pre["close_price"]
                         / pre["period_pre_start_close_price"]
                     )
-                ) / cur_net                
+                ) / cur_net
                 # 记录卖出股票
                 sale_mfst = pd.DataFrame(columns=sale_mfst_columns)
                 sale_mfst["ticker"] = sale["ticker"]
@@ -524,7 +568,7 @@ class BaseStrategy:
                     sale_mfst["sale_price"] / sale_mfst["buy_price"] - 1
                 )
                 sale_mfst["hold_days"] = sale["hold_days"]
-                
+
                 # This is incorrect
                 # sale_mfst["unit_net"] = (
                 #     sale["period_start_pos_pct"] * sale["net"]
@@ -589,7 +633,7 @@ class BaseStrategy:
             buy_candidate_count = df_buy_candidate.shape[0]
 
             # 调试作用
-            if balance - cur_net> 0.001:
+            if balance - cur_net > 0.001:
                 error_position_file = "/tmp/error_df_position_mfst.csv"
                 error_sale_file = "/tmp/error_df_sale_mfst.csv"
                 self.df_position_mfst.to_csv(error_position_file)
@@ -689,12 +733,14 @@ class BaseStrategy:
                 pass
 
             # 调试作用
-            if cur["period_start_pos_pct"].sum() >1.001:
-                debug_file_position_mfst="/tmp/error_df_position_mfst.csv"
-                debug_file_sale_mfst="/tmp/error_df_sale_mfst.csv"
+            if cur["period_start_pos_pct"].sum() > 1.001:
+                debug_file_position_mfst = "/tmp/error_df_position_mfst.csv"
+                debug_file_sale_mfst = "/tmp/error_df_sale_mfst.csv"
                 self.df_position_mfst.to_csv(debug_file_position_mfst)
                 self.df_sale_mfst.to_csv(debug_file_sale_mfst)
-                raise Exception(f"内部错误, 持仓股票超出100%比例，请检查{debug_file_position_mfst} {debug_file_sale_mfst}")
+                raise Exception(
+                    f"内部错误, 持仓股票超出100%比例，请检查{debug_file_position_mfst} {debug_file_sale_mfst}"
+                )
             period = period + 1
             start_date = end_date
 

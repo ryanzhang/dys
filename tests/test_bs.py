@@ -14,7 +14,7 @@ skipif = pytest.mark.skipif
 skip = pytest.mark.skip
 xfail = pytest.mark.xfail
 
-warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
 class MyStrategy(BaseStrategy):
@@ -120,7 +120,7 @@ class MyStrategy(BaseStrategy):
             xperiod=1,
             xtiming=1,
             bench_num=5,
-            unit_ideal_pos_pct= 15 / 100,
+            unit_ideal_pos_pct=15 / 100,
             unit_pos_pct_tolerance=30 / 100,
             mini_unit_buy_pct=1 / 100,
             buy_fee_rate=0.3 / 1000,
