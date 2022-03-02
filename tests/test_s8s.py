@@ -78,14 +78,9 @@ class S8Strategy(BaseStrategy):
         # Optional only for debug
         # 1个亿= 100000000
         # 排除ST
-        self.append_select_condition(
-            "not sec_short_name.str.startswith('*ST')"
-        )
         # 排除将要退市股票
-        self.append_select_condition("not sec_short_name.str.startswith('退市')")
-        self.append_select_condition("not sec_short_name.str.endswith('退')")
-        self.append_select_condition("not sec_short_name.str.startswith('ST')")
-        self.append_select_condition("not sec_short_name.str.startswith('*ST')")
+        self.append_select_condition("not sec_short_name.str.contains(pat = '退')")
+        self.append_select_condition("not sec_short_name.str.contains(pat = 'S')")
         self.append_select_condition("open_price > 0")
         # 排除科创
         self.append_select_condition("neg_market_value < 2000000000")
@@ -150,7 +145,12 @@ class S8Strategy(BaseStrategy):
         )
         self.trade_model.append_buy_criterial("rank<=8")
         self.trade_model.append_buy_criterial("chg_pct>-0.098")
-        self.trade_model.append_sale_criterial("sec_short_name.str.startswith('*ST')")
+        self.trade_model.append_sale_criterial(
+            "sec_short_name.str.contains(pat = 'ST')"
+        )
+        self.trade_model.append_sale_criterial(
+            "sec_short_name.str.contains('退')"
+        )
         self.trade_model.append_sale_criterial("ma5_vol_rate>3")
         self.trade_model.append_sale_criterial("rank >= 34")
         self.trade_model.append_notsale_criterial("chg_pct > 0.098")
@@ -201,10 +201,12 @@ class TestSmall8Strategy:
         df2_sample.to_csv("/tmp/test_s8s_rank.csv")
 
     def test_get_position_mfst(self, s8s: S8Strategy):
+        start_date = date(2010, 1, 4)
+        end_date = date(2021, 12, 31)
         s8s.set_equ_pool()
         s8s.set_select_condition()
         s8s.select_equd_by_date(
-            start_date=date(2010, 1, 4), end_date=date(2021, 12, 31)
+            start_date=start_date, end_date=end_date
         )
         s8s.set_rank_factors()
         s8s.rank()
@@ -215,13 +217,15 @@ class TestSmall8Strategy:
         assert mfst is not None
 
         max_drawback = s8s.get_history_max_drawdown()
+        max_roi = s8s.get_history_max_roi()
+        final_roi = s8s.get_roi_by_date(
+            start_date=start_date, end_date=end_date
+        )
+        logger.info(f"最终收益:{final_roi}")
+        logger.info(f"最大收益:{max_roi}")
         logger.info(f"最大回撤:{max_drawback}")
-        mfst.to_csv(
-            "/tmp/test_s8s_position_mfst.csv"
-        )
-        s8s.df_sale_mfst.to_csv(
-            "/tmp/test_s8s_sale_mfst.csv"
-        )
+        mfst.to_csv("/tmp/test_s8s_position_mfst.csv")
+        s8s.df_sale_mfst.to_csv("/tmp/test_s8s_sale_mfst.csv")
 
     def test_cov_between_my_and_guoren_on_20210114(self):
         mdf = pd.read_csv("/tmp/test_s8s_rank.csv")

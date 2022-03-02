@@ -1,4 +1,4 @@
-# dys - 策略框架
+# dys 
 
 [![codecov](https://codecov.io/gh/ryanzhang/dys/branch/main/graph/badge.svg?token=dys_token_here)](https://codecov.io/gh/ryanzhang/dys)
 [![CI](https://github.com/ryanzhang/dys/actions/workflows/main.yml/badge.svg)](https://github.com/ryanzhang/dys/actions/workflows/main.yml)

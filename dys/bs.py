@@ -17,7 +17,7 @@ and then choose `flask` as template.
 import os
 from datetime import date, timedelta
 from typing import Any, Iterable, List
-
+import warnings
 import pandas as pd
 from kupy.config import configs
 from kupy.dbadaptor import DBAdaptor
@@ -26,8 +26,11 @@ from kupy.logger import logger
 from dys.domain import RankFactor, SelectMetric, StrategyConfig, TradeModel
 from dys.stockutil import StockUtil
 
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 # By default 120 tradeable days between 2009-07-09 to 2020-12-31
 # New k data can be append since 2022-01-04
+
 DEFAULT_TOTAL_START_DATE = "20090709"
 DEFAULT_TOTAL_END_DATE = "20220223"
 
@@ -341,14 +344,18 @@ class BaseStrategy:
                 if pre.shape[0] > update_pre_equd.shape[0]:
                     # 出现了停牌的股票, 需要特殊处理
                     not_in_choice_appear = True
-                    not_in_choice_equ = pre[~pre.ticker.isin(update_pre_equd.ticker)]
-                    logger.debug(f'出现ST股票，已经无法在指标选股列表中找到行情数据{not_in_choice_equ}')
-                    not_in_choice_equ["close_price"] = not_in_choice_equ[
-                        "period_pre_start_close_price"
+                    not_in_choice_equ = pre[
+                        ~pre.ticker.isin(update_pre_equd.ticker)
                     ]
-                    not_in_choice_equ["open_price"] = 0
-                    not_in_choice_equ["highest_price"] = 0
-                    not_in_choice_equ["lowest_price"] = 0
+                    logger.debug(
+                        f"出现ST股票，已经无法在指标选股列表中找到行情数据{not_in_choice_equ[['trade_date','sec_short_name']]}"
+                    )
+                    # not_in_choice_equ["close_price"] = not_in_choice_equ[
+                    # "period_pre_start_close_price"
+                    # ]
+                    not_in_choice_equ.loc[:, "open_price"] = 0
+                    not_in_choice_equ.loc[:, "highest_price"] = 0
+                    not_in_choice_equ.loc[:, "lowest_price"] = 0
 
                     # pre = pre[pre.ticker.isin(update_pre_equd.ticker)]
 
@@ -359,55 +366,80 @@ class BaseStrategy:
                 if not_in_choice_appear:
                     # 直接从最大的股票池里面加载数据 并且强制表示为*ST
                     update_not_in_choice_equ = self.df_equd_pool.loc[
-                        (self.df_equd_pool.ticker.isin(not_in_choice_equ.ticker))
+                        (
+                            self.df_equd_pool.ticker.isin(
+                                not_in_choice_equ.ticker
+                            )
+                        )
                         & (self.df_equd_pool.trade_date == start_date),
                         self.df_equd_pool.columns[
                             2 : len(self.df_equd_pool.columns)
                         ],
                     ]
+                    #下面不需要，系统会自动标
                     # 如果 因为什么原因没有表*ST，我们强制标*ST 以此做为标记要卖出
-                    update_not_in_choice_equ.loc[~update_not_in_choice_equ['sec_short_name'].str.startswith('*ST'),'sec_short_name'] = "*ST" + update_not_in_choice_equ['sec_short_name']
-                    update_pre_equd = pd.concat([update_pre_equd, update_not_in_choice_equ])
+                    # update_not_in_choice_equ.loc[
+                    #     ~update_not_in_choice_equ[
+                    #         "sec_short_name"
+                    #     ].str.startswith("*ST"),
+                    #     "sec_short_name",
+                    # ] = (
+                    #     "*ST" + update_not_in_choice_equ["sec_short_name"]
+                    # )
+                    update_pre_equd = pd.concat(
+                        [update_pre_equd, update_not_in_choice_equ]
+                    )
                     # pre = pd.merge(pre, update_not_in_choice_equ, on="ticker", how="left")
 
-                pre = pd.merge(pre,update_pre_equd , on="ticker", how="left")
-                    # not_in_choice_equ = pd.merge(not_in_choice_equ, update_not_in_choice_equ, on='ticker', how = 'left')
-                    # sale_nice = not_in_choice_equ[not_in_choice_equ.open_price>0]
+                pre = pd.merge(pre, update_pre_equd, on="ticker", how="left")
+                if not_in_choice_appear:
+                    # 真正停牌的股票，而非ST的股票，在大池里也是找不到当日行情
+                    pre.loc[(pre.open_price.isna()) | (pre.open_price==0), "close_price"] = pre["period_pre_start_close_price"]
+                    pre.loc[(pre.open_price.isna()) | (pre.open_price==0), "sec_short_name"] = "当日停牌"
 
-                    # if sale_nice.shape[0]>0:
-                    #     # 空出仓位值
-                    #     balance: float = (
-                    #         sale_nice["period_start_pos_pct"]
-                    #         * sale_nice["net"]
-                    #         * (sale_nice['close_price']/sale_nice['period_pre_start_close_price'] -1)
-                    #         * (1 - tm.sale_fee_rate)
-                    #     ).sum() + balance                        
-                    # # 被迫持有停盘股票，等待下一个周期 检查
-                    # cant_sale_nice = not_in_choice_equ[not_in_choice_equ.open_price==0]
-                    # pre = pd.merge(pre, cant_sale_nice, on="ticker", how="left")
+                # not_in_choice_equ = pd.merge(not_in_choice_equ, update_not_in_choice_equ, on='ticker', how = 'left')
+                # sale_nice = not_in_choice_equ[not_in_choice_equ.open_price>0]
+
+                # if sale_nice.shape[0]>0:
+                #     # 空出仓位值
+                #     balance: float = (
+                #         sale_nice["period_start_pos_pct"]
+                #         * sale_nice["net"]
+                #         * (sale_nice['close_price']/sale_nice['period_pre_start_close_price'] -1)
+                #         * (1 - tm.sale_fee_rate)
+                #     ).sum() + balance
+                # # 被迫持有停盘股票，等待下一个周期 检查
+                # cant_sale_nice = not_in_choice_equ[not_in_choice_equ.open_price==0]
+                # pre = pd.merge(pre, cant_sale_nice, on="ticker", how="left")
 
                 # update_not_in_choice_equ = update_not_in_choice_equ[update_not_in_choice_equ.open_price>0]
 
-
-                pre["period_pre_chg_pct"] = (pre["period_pre_chg_pct"] + 1) * (
+                # 统计上个周期的涨跌幅
+                pre["period_pre_chg_pct"] = (
                     pre["close_price"] / pre["period_pre_start_close_price"]
-                ) - 1
+                    - 1
+                )
 
                 pre_net: float = pre["net"].iloc[0]
+                pre.loc[:, "unit_net_change"] = (
+                    pre["period_pre_chg_pct"]
+                    * pre["period_start_pos_pct"]
+                    * pre_net
+                )
                 cur_net: float = (
                     (pre["close_price"] / pre["period_pre_start_close_price"])
                     * pre["period_start_pos_pct"]
                     * pre_net
                 ).sum() + balance
-                pre["net"] = cur_net
-                pre["period_start_pos_pct"] = (
-                    pre["period_start_pos_pct"]
-                    * pre_net
-                    * (
-                        pre["close_price"]
-                        / pre["period_pre_start_close_price"]
-                    )
-                ) / cur_net
+                # pre["net"] = cur_net
+                # pre["period_start_pos_pct"] = (
+                #     pre["period_start_pos_pct"]
+                #     * pre_net
+                #     * (
+                #         pre["close_price"]
+                #         / pre["period_pre_start_close_price"]
+                #     )
+                # ) / cur_net
 
                 # Check Sale condition
                 sale = pre.query(tm.sale_criterial)
@@ -418,45 +450,68 @@ class BaseStrategy:
                     sale = sale[~sale.ticker.isin(notsale.ticker)]
 
                 # 空出仓位值
+                sum_sale_trans_fee = (
+                    sale["period_start_pos_pct"] * tm.sale_fee_rate * pre_net * (1 + pre['period_pre_chg_pct'])
+                ).sum()
                 balance: float = (
-                    sale["period_start_pos_pct"]
-                    * (1 - tm.sale_fee_rate)
-                    * sale["net"]
-                ).sum() + balance
+                    (sale["period_start_pos_pct"] * pre_net * (1 + pre['period_pre_chg_pct'])).sum()
+                    + balance
+                    - sum_sale_trans_fee
+                )
 
                 pre = pre[~pre.ticker.isin(sale.ticker)]
-                if notsale is not None and notsale.shape[0] > 0:
-                    pre = pd.concat([pre, notsale])
+                # if notsale is not None and notsale.shape[0] > 0:
+                #     pre = pd.concat([pre, notsale])
 
-                # 检查是否有超出边界 但是没有到达卖出条件的股票
-                max_allow_pos_pct = tm.unit_ideal_pos_pct * (
-                    1 + tm.unit_pos_pct_tolerance
-                )
-                sale_partial = pre.query(
-                    f"period_start_pos_pct>{max_allow_pos_pct}"
-                )
+                # # 检查是否有超出边界 但是没有到达卖出条件的股票
+                # max_allow_pos_pct = tm.unit_ideal_pos_pct * (
+                #     1 + tm.unit_pos_pct_tolerance
+                # )
+                # sale_partial = pre.query(
+                #     f"period_start_pos_pct>{max_allow_pos_pct}"
+                # )
 
-                if sale_partial.shape[0] > 0:
-                    balance_sale_partial = (
-                        (
-                            sale["period_start_pos_pct"]
-                            - tm.unit_ideal_pos_pct
-                        )  # 超出的仓位
-                        * sale["net"]
-                    ).sum()
-                    balance = balance_sale_partial + balance
-                    self.df_sale_mfst = pd.concat(
-                        [self.df_sale_mfst, sale_partial]
+                # if sale_partial.shape[0] > 0:
+                #     partial_sum_sale_trans_fee = (
+                #         (
+                #             sale["period_start_pos_pct"]
+                #             - tm.unit_ideal_pos_pct
+                #         )  # 超出的仓位
+                #         * cur_net
+                #         * tm.sale_fee_rate
+                #     ).sum()
+                #     balance_sale_partial = (
+                #         (
+                #             sale["period_start_pos_pct"]
+                #             - tm.unit_ideal_pos_pct
+                #         )  # 超出的仓位
+                #         * cur_net
+                #     ).sum() - partial_sum_sale_trans_fee
+                #     balance = balance_sale_partial + balance
+                #     cur_net = cur_net - partial_sum_sale_trans_fee
+                #     self.df_sale_mfst = pd.concat(
+                #         [self.df_sale_mfst, sale_partial]
+                #     )
+                #     # 超出仓位的股票回归理想仓位
+                #     pre.loc[
+                #         (
+                #             pre["period_start_pos_pct"]
+                #             > tm.unit_ideal_pos_pct * tm.unit_pos_pct_tolerance
+                #         ),
+                #         "period_start_pos_pct",
+                #     ] = tm.unit_ideal_pos_pct
+
+                cur_net = cur_net - sum_sale_trans_fee
+                pre.loc[:, "net"] = cur_net
+
+                pre.loc[:, "period_start_pos_pct"] = (
+                    pre["period_start_pos_pct"]
+                    * pre_net
+                    * (
+                        pre["close_price"]
+                        / pre["period_pre_start_close_price"]
                     )
-                    # 超出仓位的股票回归理想仓位
-                    pre.loc[
-                        (
-                            pre["period_start_pos_pct"]
-                            > tm.unit_ideal_pos_pct * tm.unit_pos_pct_tolerance
-                        ),
-                        "period_start_pos_pct",
-                    ] = tm.unit_ideal_pos_pct
-
+                ) / cur_net                
                 # 记录卖出股票
                 sale_mfst = pd.DataFrame(columns=sale_mfst_columns)
                 sale_mfst["ticker"] = sale["ticker"]
@@ -469,12 +524,14 @@ class BaseStrategy:
                     sale_mfst["sale_price"] / sale_mfst["buy_price"] - 1
                 )
                 sale_mfst["hold_days"] = sale["hold_days"]
-                sale_mfst["unit_net"] = (
-                    sale["period_start_pos_pct"] * sale["net"]
-                )
-                sale_mfst["increase_net"] = (
-                    sale["net"] * sale["chg_pct"] / (1 + sale["chg_pct"])
-                )
+                
+                # This is incorrect
+                # sale_mfst["unit_net"] = (
+                #     sale["period_start_pos_pct"] * sale["net"]
+                # )
+                # sale_mfst["increase_net"] = (
+                #     sale["unit_net"] * sale["chg_pct"] * (1-tm.sale_fee_rate)/ (1 + sale["chg_pct"])
+                # )
                 sale_mfst["relative_roi"] = 0
                 # Keep the metrics for analysis
                 sale.drop(sale.columns[0:20], axis=1, inplace=True)
@@ -501,7 +558,7 @@ class BaseStrategy:
 
             df_candidate = self.get_choice_equ_by_date(start_date)
 
-            df_candidate['sale_days'] = 100000
+            df_candidate.loc[:, "sale_days"] = 100000
             # 增加卖出时间列
             # 增加临时卖出天数列 , 0 表示没有卖过
             if (
@@ -519,9 +576,9 @@ class BaseStrategy:
                 df_candidate["sale_days"] = (
                     df_candidate["trade_date"] - df_candidate["sale_date"]
                 ).dt.days
-                df_candidate.drop(['sale_date'], axis=1, inplace=True)
+                df_candidate.drop(["sale_date"], axis=1, inplace=True)
 
-            df_candidate['sale_days'].fillna(100000, inplace=True)
+            df_candidate["sale_days"].fillna(100000, inplace=True)
 
             df_buy_candidate = df_candidate.query(tm.buy_criterial)
 
@@ -532,7 +589,7 @@ class BaseStrategy:
             buy_candidate_count = df_buy_candidate.shape[0]
 
             # 调试作用
-            if balance > cur_net:
+            if balance - cur_net> 0.001:
                 error_position_file = "/tmp/error_df_position_mfst.csv"
                 error_sale_file = "/tmp/error_df_sale_mfst.csv"
                 self.df_position_mfst.to_csv(error_position_file)
@@ -596,9 +653,9 @@ class BaseStrategy:
                                 balance_pos_pct
                                 - (buy_count - 1) * tm.unit_ideal_pos_pct
                             )
-                            df_buy_candidate["period_start_pos_pct"].iloc[
-                                -1
-                            ] = balance_pos_pct
+                            df_buy_candidate.loc[
+                                :, "period_start_pos_pct"
+                            ].iloc[-1] = balance_pos_pct
                             balance = 0
                         else:
                             balance = nondividable_balance_pos_change * cur_net
@@ -608,7 +665,7 @@ class BaseStrategy:
                     balance = (
                         balance - buy_count * tm.unit_ideal_pos_pct * cur_net
                     )
-
+                df_buy_candidate["unit_net_change"] = 0
                 cur = pd.concat(
                     [
                         cur,
@@ -631,12 +688,21 @@ class BaseStrategy:
                 pre = pd.DataFrame(columns=position_mfst_columns)
                 pass
 
+            # 调试作用
+            if cur["period_start_pos_pct"].sum() >1.001:
+                debug_file_position_mfst="/tmp/error_df_position_mfst.csv"
+                debug_file_sale_mfst="/tmp/error_df_sale_mfst.csv"
+                self.df_position_mfst.to_csv(debug_file_position_mfst)
+                self.df_sale_mfst.to_csv(debug_file_sale_mfst)
+                raise Exception(f"内部错误, 持仓股票超出100%比例，请检查{debug_file_position_mfst} {debug_file_sale_mfst}")
             period = period + 1
             start_date = end_date
-            
+
         # 计算历史最大回撤
-        max_net = self.df_position_mfst['net'].cummax()
-        self.df_position_mfst['drawback_pct'] = self.df_position_mfst['net']/max_net -1
+        max_net = self.df_position_mfst["net"].cummax()
+        self.df_position_mfst["drawback_pct"] = (
+            self.df_position_mfst["net"] / max_net - 1
+        )
         # self.df_position_mfst['rolling_on_year_max_net'] = self.df_position_mfst['net'].rolling(243, min_periods=1).max
         # self.df_position_mfst['drawback_pct'] = self.df_position_mfst['net']/max_net -1
 
@@ -660,18 +726,27 @@ class BaseStrategy:
             "period_pre_chg_pct",
             "period_start_pos_pct",
             "hold_days",
+            "unit_net_change",
             "net",
             "initial_date",
             "initial_price",
         ]
         # 仍然将原来的买入时机的股票指标显示
-        reorder_pos_mfst_columns.extend(df.columns[12 : len(df.columns) - 1])
+        reorder_pos_mfst_columns.extend(df.columns[12 : len(df.columns) - 2])
         df = df[reorder_pos_mfst_columns]
         return df
-    
-    def get_history_max_drawdown(self)->float:
-        max_drawback = self.df_position_mfst['drawback_pct'].min()
+
+    def get_history_max_drawdown(self) -> float:
+        max_drawback = self.df_position_mfst["drawback_pct"].min()
         return max_drawback
+
+    def get_history_max_roi(self) -> float:
+        ret = self.df_position_mfst["net"].max()
+        return ret
+
+    def get_roi_by_date(self, start_date: date, end_date: date) -> float:
+        ret = self.df_position_mfst["net"].iloc[-1]
+        return ret
 
     def get_sale_mfst_by_date(
         self,

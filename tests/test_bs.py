@@ -3,6 +3,7 @@ import os
 import pytest
 from kupy.dbadaptor import DBAdaptor
 from kupy.logger import logger
+import warnings
 
 from dys import *
 import pandas as pd
@@ -12,6 +13,8 @@ given = pytest.mark.parametrize
 skipif = pytest.mark.skipif
 skip = pytest.mark.skip
 xfail = pytest.mark.xfail
+
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
 class MyStrategy(BaseStrategy):
@@ -69,12 +72,15 @@ class MyStrategy(BaseStrategy):
         self.set_equ_pool()
         # Optional only for debug
         # 1个亿= 100000000
-        # 排除ST
+        # 排除将要退市股票
+        self.append_select_condition("not sec_short_name.str.startswith('退市')")
+        self.append_select_condition("not sec_short_name.str.endswith('退')")
+        self.append_select_condition("not sec_short_name.str.startswith('ST')")
         self.append_select_condition(
             "not sec_short_name.str.startswith('*ST')"
         )
-        self.append_select_condition("not sec_short_name.str.startswith('ST')")
         self.append_select_condition("open_price > 0")
+
         # 排除科创
         self.append_select_condition("neg_market_value < 2000000000")
         self.append_select_condition("open_price < 30")
@@ -111,10 +117,10 @@ class MyStrategy(BaseStrategy):
             bool: _description_
         """
         self.trade_model = TradeModel(
-            xperiod=5,
+            xperiod=1,
             xtiming=1,
             bench_num=5,
-            unit_ideal_pos_pct=15 / 100,
+            unit_ideal_pos_pct= 15 / 100,
             unit_pos_pct_tolerance=30 / 100,
             mini_unit_buy_pct=1 / 100,
             buy_fee_rate=0.3 / 1000,
@@ -122,6 +128,9 @@ class MyStrategy(BaseStrategy):
         )
         self.trade_model.append_buy_criterial("rank<=8")
         self.trade_model.append_buy_criterial("chg_pct>-0.098")
+        self.trade_model.append_sale_criterial(
+            "sec_short_name.str.startswith('*ST')"
+        )
         self.trade_model.append_buy_criterial("sale_days>=3")
         self.trade_model.append_sale_criterial("ma5_vol_rate>3")
         self.trade_model.append_sale_criterial("rank >= 34")
@@ -361,21 +370,27 @@ class TestBaseStrategy:
                 logger.debug(f"Export sale moment metrics in {osf}")
 
     def test_generate_position_mfst(self, ms: MyStrategy):
+        start_date = date(2021, 1, 4)
+        end_date = date(2021, 12, 31)
         ms.set_equ_pool()
         ms.set_select_condition()
-        ms.select_equd_by_date(
-            start_date=date(2021, 1, 4), end_date=date(2021, 12, 31)
-        )
+        ms.select_equd_by_date(start_date=start_date, end_date=end_date)
         ms.set_rank_factors()
         ms.rank()
         ms.set_trade_model()
         ms.generate_position_mfst()
         mfst = ms.get_fmt_position_mfst()
         max_drawback = ms.get_history_max_drawdown()
+        max_roi = ms.get_history_max_roi()
+        final_roi = ms.get_roi_by_date(
+            start_date=start_date, end_date=end_date
+        )
         assert mfst is not None
         mfst.to_csv("/tmp/test_ms_position_mfst.csv")
         ms.df_sale_mfst.to_csv("/tmp/test_ms_sale_mfst.csv")
         # logger.debug(mfst)
+        logger.info(f"最终收益:{final_roi}")
+        logger.info(f"最大收益:{max_roi}")
         logger.info(f"最大回撤:{max_drawback}")
 
     def test_get_trade_mfst_by_date(self, ms: MyStrategy):
