@@ -140,9 +140,9 @@ class S8Strategy(BaseStrategy):
             xperiod=5,
             xtiming=1,
             bench_num=5,
-            unit_ideal_pos_pct=15 / 100,
-            unit_pos_pct_tolerance=30 / 100,
-            mini_unit_buy_pct=1 / 100,
+            unit_ideal_pos_pct=15,
+            unit_pos_pct_tolerance=30,
+            mini_unit_buy_pct=1,
             buy_fee_rate=0,
             sale_fee_rate=2 / 1000,
         )
@@ -155,7 +155,7 @@ class S8Strategy(BaseStrategy):
         logger.debug(f"交易模型已经设定{self.trade_model}")
         return True
 
-
+@skip
 class TestSmall8Strategy:
     # @pytest.fixture(scope="class")
     # def db(self):
@@ -186,7 +186,7 @@ class TestSmall8Strategy:
         df1_sample = df1.loc[df1.trade_date == s8s.debug_sample_date, :]
         df1_sample.to_csv("/tmp/test_s8s_select.csv")
         # 设置排序条件
-        s8s.select_equd_by_date(start_date=date(2017, 1, 4))
+        s8s.select_equd_by_daterange(start_date=date(2017, 1, 4))
         s8s.set_rank_factors()
 
         s8s.rank()
@@ -199,29 +199,37 @@ class TestSmall8Strategy:
         df2_sample.to_csv("/tmp/test_s8s_rank.csv")
 
     def test_get_position_mfst(self, s8s: S8Strategy):
-        start_date = date(2021, 1, 4)
+        start_date = date(2010, 1, 4)
         end_date = date(2021, 12, 31)
         s8s.set_equ_pool()
         s8s.set_select_condition()
-        s8s.select_equd_by_date(start_date=start_date, end_date=end_date)
+        s8s.select_equd_by_daterange(start_date=start_date, end_date=end_date)
         s8s.set_rank_factors()
         s8s.rank()
         s8s.set_trade_model()
         s8s.generate_position_mfst()
-        mfst = s8s.get_fmt_position_mfst()
+        mfst: pd.DataFrame = s8s.get_fmt_position_mfst()
 
         assert mfst is not None
 
         max_drawback = s8s.get_history_max_drawdown()
         max_roi = s8s.get_history_max_roi()
-        final_roi = s8s.get_roi_by_date(
-            start_date=start_date, end_date=end_date
-        )
+        final_roi = s8s.get_roi_by_date()
+        s8s.df_position_mfst.to_parquet("/tmp/position_mfst_2010.parquet")
+        s8s.df_sale_mfst.to_parquet("/tmp/sale_mfst_2010.parquet")
+        annu_roi = final_roi ** (1 / ((end_date - start_date).days / 365)) - 1
         logger.info(f"最终收益:{final_roi}")
         logger.info(f"最大收益:{max_roi}")
         logger.info(f"最大回撤:{max_drawback}")
+        logger.info(f"平均年化:{annu_roi}")
         mfst.to_csv("/tmp/test_s8s_position_mfst.csv")
         s8s.df_sale_mfst.to_csv("/tmp/test_s8s_sale_mfst.csv")
+
+    def test_get_annual_roi(self):
+        df_pos = pd.read_parquet("/tmp/position_mfst_2010.parquet")
+        # df_sale = pd.read_parquet('/tmp/sale_mfst_2010.parquet')
+        ret = S8Strategy.get_anual_roi(df_pos)
+        logger.info(f"年化收益:{ret}")
 
     def test_cov_between_my_and_guoren_on_20210114(self):
         mdf = pd.read_csv("/tmp/test_s8s_rank.csv")

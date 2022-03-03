@@ -52,9 +52,9 @@ class TradeModel:
         # 调仓时间 exchange timing
         self.xtiming: int = xtiming  # 0 开盘， 1 收盘， 2 日均价
         self.mmf_enable: bool = mmf_enable
-        self.unit_ideal_pos_pct = unit_ideal_pos_pct
-        self.unit_pos_pct_tolerance = unit_pos_pct_tolerance
-        self.mini_unit_buy_pct = mini_unit_buy_pct
+        self.unit_ideal_pos_pct = unit_ideal_pos_pct * 0.01
+        self.unit_pos_pct_tolerance = unit_pos_pct_tolerance * 0.01
+        self.mini_unit_buy_pct = mini_unit_buy_pct * 0.01
         self.idea_unit_amount = (
             int(1 / unit_ideal_pos_pct) + 0
             if (1 / unit_ideal_pos_pct).is_integer()

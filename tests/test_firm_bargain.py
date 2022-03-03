@@ -25,6 +25,7 @@ class TestFirmBargain:
         yield
         logger.info("TestCase Level Tear Down is triggered!")
 
+    @skip
     def test_firm_bargain_construct_ok(self, db: DBAdaptor):
         fb = FirmBargain(1)
         pass

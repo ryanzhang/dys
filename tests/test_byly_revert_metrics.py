@@ -13,7 +13,7 @@ skipif = pytest.mark.skipif
 skip = pytest.mark.skip
 xfail = pytest.mark.xfail
 
-
+@skip
 class BylyStrategy(BaseStrategy):
     def __init__(self):
         BaseStrategy.__init__(self)

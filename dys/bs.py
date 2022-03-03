@@ -80,15 +80,17 @@ class BaseStrategy:
         self.df_choice_equd = self.df_equd_pool
         self.stockutil: StockUtil = StockUtil()
 
-    def __set_cache_folder(self, path):
-        self.config.data_folder = path
-        self.__mk_folder()
-
     def __mk_folder(self):
         os.makedirs(self.config.data_folder + "cache/", exist_ok=True)
         os.makedirs(self.config.data_folder + "metrics/", exist_ok=True)
 
     def __load_total_data_set(self):
+        """从数据库加载文件，具备缓存能力, 缓存需要手动删除
+
+        Raises:
+            Exception: _description_
+            Exception: _description_
+        """        
         db = DBAdaptor(is_use_cache=True)
         if self.trade_type == 0:
             self.df_equ_pool = db.get_df_by_sql("select * from stock.equity")
@@ -117,6 +119,11 @@ class BaseStrategy:
         logger.debug(f"股票池已经加载所有日线数据:{self.df_equd_pool.shape[0]}")
 
     def select_equd_by_equ_pool(self):
+        """设置完自选股池后，需要手动调用这个函数更新 选股日线行情池
+
+        Returns:
+            _type_: _description_
+        """        
         df = self.df_equd_pool
         oc = df.shape[0]
         df = df[df["ticker"].isin(self.df_equ_pool["ticker"])]
@@ -126,6 +133,11 @@ class BaseStrategy:
         return df
 
     def append_select_condition(self, condition):
+        """添加每日选股筛选条件
+
+        Args:
+            condition (_type_): _description_
+        """        
         if self.select_conditions is None:
             self.select_conditions = list()
 
@@ -148,6 +160,12 @@ class BaseStrategy:
             )
 
     def append_metric(self, sm: SelectMetric, reset_cache: bool = False):
+        """增加指标
+
+        Args:
+            sm (SelectMetric): _description_
+            reset_cache (bool, optional): _description_. Defaults to False.
+        """        
         self.df_choice_equd[sm.name] = self.__add_metric_column(
             sm, reset_cache
         )
@@ -184,9 +202,18 @@ class BaseStrategy:
         return df_metric[sm.name]
 
     def post_hook_select_equ(self):
+        raise Exception("这个方法是抽象方法，应该在子类中实现")
         pass
 
     def append_rankfactor(self, rf: RankFactor):
+        """增加每日选股的排序
+
+        Args:
+            rf (RankFactor): _description_
+
+        Raises:
+            Exception: _description_
+        """        
         cols = self.df_choice_equd.columns
 
         if rf.name not in cols:
@@ -203,7 +230,8 @@ class BaseStrategy:
         self.rank_factors.extend(rfs)
 
     def rank(self) -> pd.DataFrame:
-        """对历史所有日期到的自选股列表进行排序
+        """对每日选股中的自选股列表进行排序
+        注意它包含历史所有日期到的数据 ，需要使用groupby 
 
         Raises:
             Exception: _description_
@@ -257,7 +285,7 @@ class BaseStrategy:
         return df
 
     def rank_oneday(self, df: pd.DataFrame) -> pd.DataFrame:
-        """对给定的dataframe 里面的元素进行排序, 不是针对全量日期
+        """对给定的dataframe 里面的元素进行排序, 不是针对全量日期, 是针对一天的
 
         Raises:
             Exception: _description_
@@ -302,7 +330,7 @@ class BaseStrategy:
         logger.debug(f"选好的股票已经排序完成")
         return df
 
-    def select_equd_by_date(
+    def select_equd_by_daterange(
         self, start_date: date, end_date: date = None
     ) -> pd.DataFrame:
 
@@ -310,19 +338,19 @@ class BaseStrategy:
         self.start_date = start_date
 
         if end_date is None:
-            df = df[(df.trade_date >= start_date)]
+            df = df[(df.trade_date >= pd.to_datetime(start_date))]
             self.end_date = self.dataset_end
         else:
             self.end_date = end_date
             df = df[
-                (df.trade_date >= start_date) & (df.trade_date <= end_date)
+                (df.trade_date >= pd.to_datetime(start_date)) & (df.trade_date <= pd.to_datetime(end_date))
             ]
         self.df_choice_equd = df
 
         return df
 
     def generate_position_mfst(self) -> pd.DataFrame:
-        """产生交易清单
+        """使用交易模型产生交易清单
 
         Args:
             start_date (date): _description_
@@ -709,7 +737,7 @@ class BaseStrategy:
                     balance = (
                         balance - buy_count * tm.unit_ideal_pos_pct * cur_net
                     )
-                df_buy_candidate["unit_net_change"] = 0
+                # df_buy_candidate["unit_net_change"] = 0
                 cur = pd.concat(
                     [
                         cur,
@@ -757,6 +785,15 @@ class BaseStrategy:
     def get_fmt_position_mfst(
         self, start_date: date = None, end_date: date = None
     ):
+        """美化持仓清单增强可读性
+
+        Args:
+            start_date (date, optional): _description_. Defaults to None.
+            end_date (date, optional): _description_. Defaults to None.
+
+        Returns:
+            _type_: _description_
+        """        
         df = self.df_position_mfst
         # 增加一列
         df["period_start_close_price"] = df["close_price"]
@@ -778,21 +815,66 @@ class BaseStrategy:
             "initial_price",
         ]
         # 仍然将原来的买入时机的股票指标显示
-        reorder_pos_mfst_columns.extend(df.columns[12 : len(df.columns) - 2])
+        reorder_pos_mfst_columns.extend(df.columns[12 : len(df.columns) - 3])
         df = df[reorder_pos_mfst_columns]
         return df
 
     def get_history_max_drawdown(self) -> float:
-        max_drawback = self.df_position_mfst["drawback_pct"].min()
+        """获取历史最大回撤
+
+        Returns:
+            float: _description_
+        """        
+        max_drawback = self.df_position_mfst["drawback_pct"].min() * 100
         return max_drawback
 
     def get_history_max_roi(self) -> float:
+        """获取历史最大收益
+
+        Returns:
+            float: _description_
+        """        
         ret = self.df_position_mfst["net"].max()
         return ret
 
-    def get_roi_by_date(self, start_date: date, end_date: date) -> float:
+    def get_roi_by_date(self) -> float:
+        """获取最终的收益倍数
+
+        Args:
+            start_date (date): _description_
+            end_date (date): _description_
+
+        Returns:
+            float: _description_
+        """        
         ret = self.df_position_mfst["net"].iloc[-1]
         return ret
+
+    def get_anual_roi(self) -> float:
+        """获取平均年化收益
+
+        Returns:
+            float: _description_
+        """        
+        start_date = self.start_date
+        end_date = self.end_date
+        final_roi = self.get_roi_by_date(start_date, end_date)
+        annu_roi = final_roi ** (1 / ((end_date - start_date).days / 365)) - 1
+        return annu_roi
+        # df= df_position_mfst
+        # df['year'] = df['start_date'].dt.to_period['Y']
+        # def cac_in_year_chg(x):
+        #     begin_net = x['net'].iloc[0]
+        #     end_net = x['net'].iloc[-1]
+        #     x['in_year_chg'] = (x['net']-begin_net)/begin_net
+        #     x['end_year_chg'] = (end_net-begin_net)/begin_net
+
+        # df = df.groupby('year').apply(cac_in_year_chg)
+        # df_annu = df[['year','end_year_chg']].drop_duplicates(subset=['year'])
+        # ann_return = df_annu['end_year_chg']
+
+        # N = len(ann_return)
+        # ret = ann_return.add(1).prod() ** (12 / N) - 1
 
     def get_sale_mfst_by_date(
         self,
@@ -813,42 +895,16 @@ class BaseStrategy:
         return mfst
 
     def get_choice_equ_by_date(self, trade_date: date) -> pd.DataFrame:
-        df = self.df_choice_equd
-        return df.loc[df.trade_date == trade_date, :]
-
-    def get_roi_mfst(
-        self, start_date: date, end_date: date = None
-    ) -> pd.DataFrame:
-        """根据时间段给出回测数据清单, 大致回测流程
-        #1. 设置交易模型
-        #2. 设置交易模型
-        #3. 大盘择时
-        #4. 回测
+        """获取某日的选股
 
         Args:
-            start_date (date): _description_
-            end_date (date): _description_
+            trade_date (date): _description_
 
         Returns:
             pd.DataFrame: _description_
-        """
-
-        self.calc_choice_equd(start_date, end_date)
-
-        mfst = self.generate_trade_mfst(start_date, end_date)
-
-        logger.debug(f"回测结果清单已经生成{mfst}")
-
-        return mfst
-
-    def get_roi_stats(self, df: pd.DataFrame) -> pd.DataFrame:
-        logger.debug("策略收益统计信息已返回")
-        return pd.DataFrame()
-
-    def get_trade_stats(self, df: pd.DataFrame) -> pd.DataFrame:
-        logger.debug("交易统计已返回")
-
-        return pd.DataFrame()
+        """        
+        df = self.df_choice_equd
+        return df.loc[df.trade_date == trade_date, :]
 
     def get_rebalance_operation(
         self, trade_date: date, start_date: date = None, end_date: date = None
@@ -908,6 +964,14 @@ class BaseStrategy:
     def get_choice_equ_metrics_by_list(
         self, choice: pd.DataFrame
     ) -> pd.DataFrame:
+        """根据选股列表，反向获取所有指标的值
+
+        Args:
+            choice (pd.DataFrame): _description_
+
+        Returns:
+            pd.DataFrame: _description_
+        """    
         df = self.df_choice_equd
         df.trade_date = pd.to_datetime(df.trade_date)
         # choice.ticker=choice.ticker.astype('string')

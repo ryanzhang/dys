@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 import os
+import sys
 import pytest
 from kupy.dbadaptor import DBAdaptor
 from kupy.logger import logger
@@ -24,6 +25,15 @@ class MyStrategy(BaseStrategy):
         else:
             BaseStrategy.__init__(self)
         logger.debug("Construct MyStrategy")
+
+    def set_cache_folder(self, path):
+        """For unit test only
+
+        Args:
+            path (_type_): _description_
+        """        
+        self.config.data_folder = path
+        self._BaseStrategy__mk_folder()
 
     def set_mkt_timing_alg(self) -> bool:
         return True
@@ -69,7 +79,8 @@ class MyStrategy(BaseStrategy):
 
         Returns:
         """
-        self.set_equ_pool()
+        #set_equ_pool should be explicit calling
+        # self.set_equ_pool()
         # Optional only for debug
         # 1个亿= 100000000
         # 排除将要退市股票
@@ -120,9 +131,9 @@ class MyStrategy(BaseStrategy):
             xperiod=1,
             xtiming=1,
             bench_num=5,
-            unit_ideal_pos_pct=15 / 100,
-            unit_pos_pct_tolerance=30 / 100,
-            mini_unit_buy_pct=1 / 100,
+            unit_ideal_pos_pct=15,
+            unit_pos_pct_tolerance=30,
+            mini_unit_buy_pct=1,
             buy_fee_rate=0.3 / 1000,
             sale_fee_rate=2 / 1000,
         )
@@ -147,11 +158,11 @@ class MyETFStrategy(BaseStrategy):
 
 class TestBaseStrategy:
     # 加载一年的数据，并加载120天的margin 用于计算指标
-    @pytest.fixture(scope="class")
+    @pytest.fixture()
     def ms(self):
         ms = MyStrategy("20200709", "20211231")
         # Modify the config.data_folder
-        ms._BaseStrategy__set_cache_folder(ms.config.data_folder + "tests/")
+        ms.set_cache_folder(ms.config.data_folder + "tests/")
         ms.set_metrics()
         return ms
 
@@ -186,22 +197,22 @@ class TestBaseStrategy:
         logger.debug(f"current equ pool size:{ms.df_equ_pool.shape[0]}")
         logger.debug(f"current equd pool size:{ms.df_equd_pool.shape[0]}")
 
-    def test_select_equd_by_date_without_customize_equ_pool(
+    def test_select_equd_by_daterange_without_customize_equ_pool(
         self, ms: MyStrategy
     ):
 
-        df1 = ms.select_equd_by_date(date(2020, 7, 9))
+        df1 = ms.select_equd_by_daterange(date(2020, 7, 9))
         assert df1 is not None
         assert df1["trade_date"].iloc[0] == date(2020, 7, 9)
-        df2 = ms.select_equd_by_date(date(2021, 7, 6), date(2021, 8, 6))
+        df2 = ms.select_equd_by_daterange(date(2021, 7, 6), date(2021, 8, 6))
         assert df2 is not None
         assert df2["trade_date"].iloc[0] == date(2021, 7, 6)
         assert df2["trade_date"].iloc[-1] == date(2021, 8, 6)
 
-    def test_select_equd_by_date_with_customize_equ_pool(self, ms: MyStrategy):
+    def test_select_equd_by_daterange_with_customize_equ_pool(self, ms: MyStrategy):
         # set_equ_pool custimze the equ poo to only XSHG
         ms.set_equ_pool()
-        df1: pd.DataFrame = ms.select_equd_by_date(date(2021, 7, 9))
+        df1: pd.DataFrame = ms.select_equd_by_daterange(date(2021, 7, 9))
         assert df1 is not None
         assert df1["trade_date"].iloc[0] == date(2021, 7, 9)
         # 有退市的股票
@@ -218,14 +229,14 @@ class TestBaseStrategy:
         ms.append_metric(
             SelectMetric("MOM20_close_price", m.momentum, 20, "close_price")
         )
-        ms.append_metric(
-            SelectMetric("float_value_60", m.float_value, 60),
-            reset_cache=reset_cache,
-        )
-        ms.append_metric(
-            SelectMetric("float_rate_60", m.float_rate, 60),
-            reset_cache=reset_cache,
-        )
+        # ms.append_metric(
+        #     SelectMetric("float_value_60", m.float_value, 60),
+        #     reset_cache=reset_cache,
+        # )
+        # ms.append_metric(
+        #     SelectMetric("float_rate_60", m.float_rate, 60),
+        #     reset_cache=reset_cache,
+        # )
         df = ms.df_choice_equd
         assert "MOM20_close_price" in df.columns
         assert os.path.exists(
@@ -234,7 +245,7 @@ class TestBaseStrategy:
         logger.debug(df)
 
     def test_select_equ_by_expression(self, ms: MyStrategy):
-        ms.select_equd_by_date(date(2021, 1, 4))
+        ms.select_equd_by_daterange(date(2021, 1, 4))
         # ms.append_metric(SelectMetric("mom20", m.momentum, 20, "close_price"))
         ms.append_select_condition("close_price < 20")
         df = ms.df_choice_equd
@@ -245,10 +256,10 @@ class TestBaseStrategy:
         logger.debug(df[["trade_date", "ticker", "close_price"]])
 
     def test_select_by_date(self, ms: MyStrategy):
-        ms.select_equd_by_date(date(2021, 3, 4))
+        ms.select_equd_by_daterange(date(2021, 3, 4))
         df = ms.df_choice_equd
 
-        assert df.iloc[0].trade_date == date(2021, 3, 4)
+        assert df.iloc[0].trade_date == pd.to_datetime(date(2021, 3, 4))
         logger.debug(df)
 
     def test_ranking_1_factor(self, ms: MyStrategy):
@@ -256,7 +267,7 @@ class TestBaseStrategy:
             SelectMetric("MOM20_close_price", m.momentum, 20, "close_price")
         )
 
-        ms.select_equd_by_date(date(2022, 1, 5))
+        ms.select_equd_by_daterange(date(2022, 1, 5))
 
         ms.append_rankfactor(
             RankFactor(name="MOM20_close_price", bigfirst=True, weight=1)
@@ -281,8 +292,7 @@ class TestBaseStrategy:
 
     def test_ranking_1_factor_small_first(self, ms: MyStrategy):
         ms.set_equ_pool()
-        ms.set_equd_pool()
-        ms.select_equd_by_date(date(2022, 1, 4))
+        ms.select_equd_by_daterange(date(2022, 1, 4))
 
         ms.append_rankfactor(
             RankFactor(name="close_price", bigfirst=False, weight=1)
@@ -307,13 +317,10 @@ class TestBaseStrategy:
 
     def test_ranking_2_factor(self, ms: MyStrategy):
         ms.set_equ_pool()
-        ms.set_equd_pool()
-        ms.set_select_equ_condition("close_price<20")
-        ms.select_equd_by_date(date(2022, 1, 4))
         ms.append_metric(SelectMetric("mom20", m.momentum, 20, "close_price"))
-        ms._BaseStrategy__add_metric_column()
+        ms.set_select_condition()
+        ms.select_equd_by_daterange(date(2022, 1, 4))
         ms.post_hook_select_equ()
-        ms._BaseStrategy__select_equd_by_expression()
 
         # 由大到小排列
         ms.append_rankfactor(RankFactor(name="mom20", weight=2))
@@ -347,8 +354,9 @@ class TestBaseStrategy:
         ms.append_metric(
             SelectMetric("MOM20_close_price", m.momentum, 20, "close_price")
         )
-        directory = "/Users/rzhang/github/ryanzhang-appdev/quant-invest/dys/tests/resources/teststrategy"
-        output_directory = "/Users/rzhang/github/ryanzhang-appdev/quant-invest/dys/tests/target"
+
+        directory = sys.path[1] + "/tests/resources/teststrategy"
+        output_directory = sys.path[1] + "/tests/target"
         for filename in os.listdir(directory):
             f = os.path.join(directory, filename)
             obf = os.path.join(output_directory, "buy_" + filename)
@@ -356,12 +364,16 @@ class TestBaseStrategy:
             # checking if it is a file
             if os.path.isfile(f):
                 logger.debug(f"Start to process{f}")
-                choice_equ = pd.read_csv(f)
+
+                choice_equ = pd.read_csv(f, dtype={"ticker": object})
+
                 assert choice_equ is not None
                 assert choice_equ.shape[0] == 2
                 assert choice_equ.shape[1] == 10
                 choice_equ["trade_date"] = choice_equ["买入日期"]
+
                 df = ms.get_choice_equ_metrics_by_list(choice_equ)
+
                 df.to_csv(obf, encoding="GBK")
                 logger.debug(f"Export buy moment metrics in {obf}")
                 choice_equ["trade_date"] = choice_equ["卖出日期"]
@@ -374,7 +386,7 @@ class TestBaseStrategy:
         end_date = date(2021, 12, 31)
         ms.set_equ_pool()
         ms.set_select_condition()
-        ms.select_equd_by_date(start_date=start_date, end_date=end_date)
+        ms.select_equd_by_daterange(start_date=start_date, end_date=end_date)
         ms.set_rank_factors()
         ms.rank()
         ms.set_trade_model()
@@ -382,9 +394,7 @@ class TestBaseStrategy:
         mfst = ms.get_fmt_position_mfst()
         max_drawback = ms.get_history_max_drawdown()
         max_roi = ms.get_history_max_roi()
-        final_roi = ms.get_roi_by_date(
-            start_date=start_date, end_date=end_date
-        )
+        final_roi = ms.get_roi_by_date()
         assert mfst is not None
         mfst.to_csv("/tmp/test_ms_position_mfst.csv")
         ms.df_sale_mfst.to_csv("/tmp/test_ms_sale_mfst.csv")
@@ -392,19 +402,24 @@ class TestBaseStrategy:
         logger.info(f"最终收益:{final_roi}")
         logger.info(f"最大收益:{max_roi}")
         logger.info(f"最大回撤:{max_drawback}")
+        # ms.T.drop_duplicates().T
+        ms.df_position_mfst.to_parquet("/tmp/position_mfst_2010.parquet")
+        ms.df_sale_mfst.to_parquet("/tmp/sale_mfst_2010.parquet")
 
+    @skip
     def test_get_trade_mfst_by_date(self, ms: MyStrategy):
         the_date = date(2021, 1, 5)
         df = ms.get_trade_mfst_by_date(the_date)
         assert df is not None
         logger.debug(f"{the_date} 共选出 {df.shape[0]}")
 
+    @skip
     def test_roi_mfst(self, ms: MyStrategy):
 
         ms.set_equ_pool()
         ms.set_equd_pool()
         ms.set_select_equ_condition("close_price<20")
-        ms.select_equd_by_date(date(2022, 1, 4))
+        ms.select_equd_by_daterange(date(2022, 1, 4))
         ms.append_metric(SelectMetric("mom20", m.momentum, 20, "close_price"))
         ms._BaseStrategy__add_metric_column()
         ms.post_hook_select_equ()
