@@ -4,6 +4,10 @@ Changelog
 
 (unreleased)
 ------------
+- Small improvement and fix test/resources issue since it would been
+  packaged into dist. [Ryan Zhang]
+- Pump version up 0.1.1.dev. [Ryan Zhang]
+- Release: version 0.1.1 🚀 [Ryan Zhang]
 - Release: version 0.1.0 🚀 [Ryan Zhang]
 - Fix unittest. [Ryan Zhang]
 - Tidy code and prepare to release. [Ryan Zhang]
