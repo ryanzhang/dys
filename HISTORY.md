@@ -4,6 +4,7 @@ Changelog
 
 (unreleased)
 ------------
+- Release: version 0.1.0 🚀 [Ryan Zhang]
 - Fix unittest. [Ryan Zhang]
 - Tidy code and prepare to release. [Ryan Zhang]
 - Fix 重排问题. [Ryan Zhang]
