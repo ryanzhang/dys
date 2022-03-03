@@ -109,8 +109,8 @@ class TestMetrics:
     def test_float_rate_n(self, df: pd.DataFrame):
         db = DBAdaptor(is_use_cache=True)
         N = 60
-        df_float = db.get_df_by_sql("select * from stock.equ_share_float")
-        sm = SelectMetric(f"float_rate_{N}", m.float_rate, N, df_float)
+        # df_float = db.get_df_by_sql("select * from stock.equ_share_float")
+        sm = SelectMetric(f"float_rate_{N}", m.float_rate, N)
         df_metric = sm.apply(df, sm.name, sm.args)
 
         # df.to_csv("/tmp/test_float_rate_all.csv")
@@ -132,8 +132,8 @@ class TestMetrics:
     def test_float_value_n(self, df: pd.DataFrame):
         db = DBAdaptor(is_use_cache=True)
         N = 90
-        df_float = db.get_df_by_sql("select * from stock.equ_share_float")
-        sm = SelectMetric("float_rate_{N}", m.float_value, N, df_float)
+        # df_float = db.get_df_by_sql("select * from stock.equ_share_float")
+        sm = SelectMetric("float_rate_{N}", m.float_value, N)
         df_metric = sm.apply(df, sm.name, sm.args)
         df = df.join(df_metric)
         assert df[sm.name].notna().all()
@@ -143,15 +143,25 @@ class TestMetrics:
         # df_000156.dropna(inplace=True)
         # df_000156.to_csv("/tmp/test_bias_000156.csv")
 
-    def test_vol_rate(self, df: pd.DataFrame):
+    def test_vol_nm_rate(self, df: pd.DataFrame):
         N = 5
         M = 20
-        sm = SelectMetric(f"nm_vol_rate", m.vol_rate, N, M)
+        sm = SelectMetric(f"nm_vol_rate", m.vol_nm_rate, N, M)
         df_metric = sm.apply(df, sm.name, sm.args)
         df = df.join(df_metric)
         assert sm.name in df.columns
         df_sample = df[df["ticker"] == "000001"]
         df_sample[df_sample["nm_vol_rate"].isna()].shape[0] == M - 1
+
+    def test_vol_rate(self, df: pd.DataFrame):
+        N = 5
+        M = 20
+        sm = SelectMetric(f"nm_vol_rate", m.vol_rate, N)
+        df_metric = sm.apply(df, sm.name, sm.args)
+        df = df.join(df_metric)
+        assert sm.name in df.columns
+        df_sample = df[df["ticker"] == "000001"]
+        df_sample[df_sample["nm_vol_rate"].isna()].shape[0] == N-1
 
     def test_chg_pct_sum(self, df: pd.DataFrame):
         N = 20
@@ -213,4 +223,4 @@ class TestMetrics:
         df_metric = sm.apply(df, sm.name, sm.args)
         df = df.join(df_metric)
         assert sm.name in df.columns
-        assert df[sm.name].notna().all()
+        # assert df[sm.name].notna().all()

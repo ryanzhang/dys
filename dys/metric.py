@@ -234,7 +234,6 @@ class m(object):
             df (pd.DataFrame): _description_
             args (_type_): _description_
             1: N 日内, N日为N个交易日, 非自然日
-            2: 解禁df
 
         Raises:
             Exception: _description_
@@ -243,7 +242,7 @@ class m(object):
             pd.DataFrame: _description_
         """
         if len(args) != 1:
-            raise Exception("解禁金额指标需要两个参数:1. 天数")
+            raise Exception("解禁金额指标需要一个参数:1. 天数")
 
         df_metric = pd.DataFrame(index=df.index)
         N = args[0]
