@@ -4,6 +4,9 @@ Changelog
 
 (unreleased)
 ------------
+- Fix a bug in MANIFEST.in for release. [Ryan Zhang]
+- Pump version up 0.1.2.dev. [Ryan Zhang]
+- Release: version 0.1.2 🚀 [Ryan Zhang]
 - Small improvement and fix test/resources issue since it would been
   packaged into dist. [Ryan Zhang]
 - Pump version up 0.1.1.dev. [Ryan Zhang]
