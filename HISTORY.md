@@ -4,6 +4,9 @@ Changelog
 
 (unreleased)
 ------------
+- Do not include requrement-test and test in release. [Ryan Zhang]
+- Pump version up 0.1.3.dev. [Ryan Zhang]
+- Release: version 0.1.3 🚀 [Ryan Zhang]
 - Fix a bug in MANIFEST.in for release. [Ryan Zhang]
 - Pump version up 0.1.2.dev. [Ryan Zhang]
 - Release: version 0.1.2 🚀 [Ryan Zhang]
