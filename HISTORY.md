@@ -4,6 +4,9 @@ Changelog
 
 (unreleased)
 ------------
+- Fix sklearn dep missing issue. [Ryan Zhang]
+- Pump version up 0.1.5.dev. [Ryan Zhang]
+- Release: version 0.1.5 🚀 [Ryan Zhang]
 - Add missing deps. [Ryan Zhang]
 - Pump version up 0.1.4.dev. [Ryan Zhang]
 - Release: version 0.1.4 🚀 [Ryan Zhang]
