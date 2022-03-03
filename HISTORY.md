@@ -4,6 +4,9 @@ Changelog
 
 (unreleased)
 ------------
+- Add missing deps. [Ryan Zhang]
+- Pump version up 0.1.4.dev. [Ryan Zhang]
+- Release: version 0.1.4 🚀 [Ryan Zhang]
 - Do not include requrement-test and test in release. [Ryan Zhang]
 - Pump version up 0.1.3.dev. [Ryan Zhang]
 - Release: version 0.1.3 🚀 [Ryan Zhang]
