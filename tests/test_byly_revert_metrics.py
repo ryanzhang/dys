@@ -1,5 +1,6 @@
 from datetime import date
 import os
+import sys
 import pytest
 from kupy.dbadaptor import DBAdaptor
 from kupy.logger import logger
@@ -123,8 +124,9 @@ class TestBylyStrategy:
         logger.info("TestCase Level Tear Down is triggered!")
 
     def test_get_detail_metric_by_export_file(self, byly: BylyStrategy):
-        directory = "/Users/rzhang/github/ryanzhang-appdev/quant-invest/dys/tests/resources/byly"
-        output_directory = "/Users/rzhang/github/ryanzhang-appdev/quant-invest/dys/tests/target"
+        
+        directory = sys.path[1] + "/resources/byly"
+        output_directory = sys.path[1] + "/target"
         for filename in os.listdir(directory):
             f = os.path.join(directory, filename)
             obf = os.path.join(output_directory, "buy_" + filename)

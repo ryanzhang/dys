@@ -123,6 +123,10 @@ init:             ## Initialize the project based on an application template.
 sdist: clean test testdist systest
 
 testdist: clean
+	@git checkout dys/VERSION
+	@PRE_TAG=$(shell cat dys/VERSION|sed "s/.1dev//");\
+	read -p "Version? (provide the next x.y.z version,Previous tag, $${PRE_TAG} ) : " TAG;\
+	echo $$TAG > dys/VERSION;\
 	python setup.py sdist bdist_wheel
 	twine upload -r pypitest dist/*
 
