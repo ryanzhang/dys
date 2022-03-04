@@ -1,6 +1,9 @@
 import traceback
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 import pandas as pd
+pd.options.mode.chained_assignment = None  # default='warn'
 from kupy import *
 
 from dys.neutralize import Neutra
@@ -14,7 +17,59 @@ class m(object):
         object (_type_): _description_
     """
 
+    def price_ampl(df: pd.DataFrame, name, args) -> pd.DataFrame:
+        """当日股价振幅
+
+        Args:
+            df (pd.DataFrame): _description_
+            name (_type_): _description_
+            args (_type_): _description_
+
+        Returns:
+            pd.DataFrame: _description_
+        """        
+        df_metric = pd.DataFrame(index=df.index)
+        df_metric[name] = ((df["highest_price"] - df["lowest_price"])/df['pre_close_price']).astype(
+            int
+        )
+        return df_metric
+
+    def ma_any(df: pd.DataFrame, name, args) -> pd.DataFrame:
+        """当日股价振幅
+
+        Args:
+            df (pd.DataFrame): _description_
+            name (_type_): _description_
+            args (_type_): _description_
+
+        Returns:
+            pd.DataFrame: _description_
+        """        
+        N = args[0]
+        metric_name = args[1]
+
+        if len(args) != 2:
+            raise Exception("ma_any指标需要两个参数:1. 计算均值天数,2 要计算均值的指标名称")
+
+        df_metric = pd.DataFrame(index=df.index)
+
+        df = df.groupby("ticker").apply(m.__MA, N, metric_name, 1)
+        df_metric = pd.DataFrame(index=df.index)
+        df_metric[name] = df.iloc[:, -1]
+
+        return df_metric
+
     def neg_market_amount(df: pd.DataFrame, name, args) -> pd.DataFrame:
+        """流通股数
+
+        Args:
+            df (pd.DataFrame): _description_
+            name (_type_): _description_
+            args (_type_): _description_
+
+        Returns:
+            pd.DataFrame: _description_
+        """        
         df_metric = pd.DataFrame(index=df.index)
         df_metric[name] = (df["neg_market_value"] / df["close_price"]).astype(
             int
@@ -296,7 +351,7 @@ class m(object):
             pd.DataFrame: _description_
         """
         if len(args) != 1:
-            raise Exception("N/M日量比指标需要两个参数:1. N天数")
+            raise Exception("N/M日量比指标需要一个参数:1. N天数")
 
         df_metric = pd.DataFrame(index=df.index)
         N = args[0]
@@ -326,6 +381,7 @@ class m(object):
 
     def ma_turnover_rate(df: pd.DataFrame, name, args) -> pd.DataFrame:
         """N日平均换手率 包含当前日
+        deprecated 应该使用ma_any
 
         Args:
             df (pd.DataFrame): _description_
@@ -344,6 +400,8 @@ class m(object):
 
     def ma_vol(df: pd.DataFrame, name, args) -> pd.DataFrame:
         """N日平均成交量 包含当前日
+        deprecated 应该使用ma_any
+
 
         Args:
             df (pd.DataFrame): _description_

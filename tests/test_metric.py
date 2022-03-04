@@ -30,6 +30,22 @@ class TestMetrics:
         yield
         logger.info("TestCase Level Tear Down is triggered!")
 
+    def test_price_aml(self, df):
+        sm = SelectMetric("price_ampl", m.price_ampl)
+        df_metric = sm.apply(df, sm.name, sm.args)
+        assert sm.name in df_metric.columns
+        df = df.join(df_metric)
+        df_sample_null_metric = df.loc[
+            (df["ticker"] == "000002") & (df_metric[sm.name].isna()), :
+        ]
+        assert df[sm.name].notna().all()
+        logger.debug(df_metric)
+
+
+        
+    def test_ma_price_aml(self, df):
+        pass
+
     def test_momentum(self, df: pd.DataFrame):
         sm = SelectMetric("MOM20_close_price", m.momentum, 20, "close_price")
         df_metric = sm.apply(df, sm.name, sm.args)

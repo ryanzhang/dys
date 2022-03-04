@@ -16,10 +16,12 @@ and then choose `flask` as template.
 
 import os
 import warnings
+warnings.simplefilter(action="ignore", category=FutureWarning)
 from datetime import date, timedelta
 from typing import Any, Iterable, List
 
 import pandas as pd
+pd.options.mode.chained_assignment = None  # default='warn'
 from kupy.config import configs
 from kupy.dbadaptor import DBAdaptor
 from kupy.logger import logger
@@ -27,7 +29,6 @@ from kupy.logger import logger
 from dys.domain import RankFactor, SelectMetric, StrategyConfig, TradeModel
 from dys.stockutil import StockUtil
 
-warnings.simplefilter(action="ignore", category=FutureWarning)
 
 # By default 120 tradeable days between 2009-07-09 to 2020-12-31
 # New k data can be append since 2022-01-04
