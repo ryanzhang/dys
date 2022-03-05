@@ -1,5 +1,6 @@
 import traceback
 import warnings
+import numpy as np
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 import pandas as pd
@@ -29,9 +30,7 @@ class m(object):
             pd.DataFrame: _description_
         """        
         df_metric = pd.DataFrame(index=df.index)
-        df_metric[name] = ((df["highest_price"] - df["lowest_price"])/df['pre_close_price']).astype(
-            int
-        )
+        df_metric[name] = (df["highest_price"] - df["lowest_price"])/df['pre_close_price']
         return df_metric
 
     def ma_any(df: pd.DataFrame, name, args) -> pd.DataFrame:
@@ -59,6 +58,30 @@ class m(object):
 
         return df_metric
 
+    def sum_any(df: pd.DataFrame, name, args) -> pd.DataFrame:
+        """当日股价振幅
+
+        Args:
+            df (pd.DataFrame): _description_
+            name (_type_): _description_
+            args (_type_): _description_
+
+        Returns:
+            pd.DataFrame: _description_
+        """        
+        N = args[0]
+        metric_name = args[1]
+
+        if len(args) != 2:
+            raise Exception("sum_any指标需要两个参数:1. 计算累计天数,2 要计算均值的指标名称")
+
+        df_metric = pd.DataFrame(index=df.index)
+
+        df = df.groupby("ticker").apply(m.__SUM, N, metric_name, 1)
+        df_metric = pd.DataFrame(index=df.index)
+        df_metric[name] = df.iloc[:, -1]
+
+        return df_metric
     def neg_market_amount(df: pd.DataFrame, name, args) -> pd.DataFrame:
         """流通股数
 
@@ -190,9 +213,8 @@ class m(object):
         N = args[0]
         col_name = f"MA{N}_turnover_rate"
         df = df.groupby("ticker").apply(m.__MA, N, "turnover_rate")
-        df[col_name] = df[col_name].fillna(df.iat[N - 1, df.shape[1] - 1])
-        # df[col_name].fillna(0, inplace=True)
-        # logger.debug(df)
+        # 中性换手率不能有空值
+        df[col_name] = df[col_name].fillna(0)
         df = df.groupby("trade_date").apply(m.__neutralize, col_name)
         df_metric[name] = df["ntra_metric"]
         return df_metric
@@ -216,7 +238,8 @@ class m(object):
         col_name = f"MA{N}_bias"
         df_metric = m.bias(df, col_name, [N])
         df[col_name] = df_metric[col_name]
-        df[col_name] = df[col_name].fillna(df.iat[N - 1, df.shape[1] - 1])
+        # 中性换手率不能有空值
+        df[col_name] = df[col_name].fillna(0)
         df = df.groupby("trade_date").apply(m.__neutralize, col_name)
         df_metric[name] = df["ntra_metric"]
         df_metric.drop(columns=[col_name], inplace=True)
@@ -337,6 +360,7 @@ class m(object):
         df = df.groupby("ticker").apply(m.__MA, N, "turnover_vol", 1)
         df = df.groupby("ticker").apply(m.__MA, M, "turnover_vol", 1)
         df_metric[name] = df[f"MA{N}_turnover_vol"] / df[f"MA{M}_turnover_vol"]
+        df_metric.replace([np.inf, -np.inf], np.nan, inplace=True)
         return df_metric
 
     def vol_rate(df: pd.DataFrame, name, args) -> pd.DataFrame:
@@ -360,10 +384,12 @@ class m(object):
         df_metric[name] = df[f"SUM{N}_turnover_vol"] / (
             df[f"SUM{2*N}_turnover_vol"] - df[f"SUM{N}_turnover_vol"]
         )
+        df_metric.replace([np.inf, -np.inf], np.nan, inplace=True)
         return df_metric
 
-    def sum_chg_pct(df: pd.DataFrame, name, args) -> pd.DataFrame:
+    def n_chg_pct(df: pd.DataFrame, name, args) -> pd.DataFrame:
         """N日内涨跌幅总和
+        注意这里和累积多日的涨跌幅是不同的；
 
         Args:
             df (pd.DataFrame): _description_
@@ -374,7 +400,7 @@ class m(object):
         """
 
         N = args[0]
-        df = df.groupby("ticker").apply(m.__SUM, N, "chg_pct")
+        df = df.groupby("ticker").apply(m.__caculate_offset_chg_pct, N )
         df_metric = pd.DataFrame(index=df.index)
         df_metric[name] = df.iloc[:, -1]
         return df_metric
@@ -396,6 +422,7 @@ class m(object):
 
         df_metric = pd.DataFrame(index=df.index)
         df_metric[name] = df.iloc[:, -1]
+        df_metric.replace([np.inf, -np.inf], np.nan, inplace=True)
         return df_metric
 
     def ma_vol(df: pd.DataFrame, name, args) -> pd.DataFrame:
@@ -457,6 +484,14 @@ class m(object):
         x["neg_cov"] = -1 * x["highrank"].rolling(N).cov(x["volrank"])
         return x
 
+    def __caculate_offset_chg_pct(x:pd.DataFrame, N:int):
+        """计算N日内涨跌幅
+        """        
+        x[f'{N}_close_price'] = x['close_price'].shift(20)
+        x[f'{N}_chg_pct'] = (x['close_price'] - x[f'{N}_close_price'])/x[f'{N}_close_price']
+        x.drop(f'{N}_close_price', axis=1, inplace=True)
+        return x
+
     def __neutralize(x: pd.DataFrame, col_name: str):
         """取一天行情为基础数据的中性化
 
@@ -469,10 +504,11 @@ class m(object):
         """
 
         ntra = Neutra(x["neg_market_value"])
+        x["ntra_metric"] = np.nan
         try:
             x["ntra_metric"] = ntra.apply(x[col_name])
         except Exception as e:
-            spot_df = configs["data_folder"].data + "_neutralize_error.csv"
+            # spot_df = configs["data_folder"].data + "_neutralize_error.csv"
             # x.to_csv(spot_df)
             logger.error(f"中性化指标时候出错 Exception:{e}, col_name{col_name}")
             # Trace only

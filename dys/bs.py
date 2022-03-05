@@ -19,6 +19,7 @@ import warnings
 warnings.simplefilter(action="ignore", category=FutureWarning)
 from datetime import date, timedelta
 from typing import Any, Iterable, List
+import numpy as np
 
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -82,8 +83,8 @@ class BaseStrategy:
         self.stockutil: StockUtil = StockUtil()
 
     def __mk_folder(self):
-        os.makedirs(self.config.data_folder + "cache/", exist_ok=True)
-        os.makedirs(self.config.data_folder + "metrics/", exist_ok=True)
+        os.makedirs(f"{self.config.data_folder}/cache/", exist_ok=True)
+        os.makedirs(f"{self.config.data_folder}/metrics/", exist_ok=True)
 
     def __load_total_data_set(self):
         """从数据库加载文件，具备缓存能力, 缓存需要手动删除
@@ -106,13 +107,20 @@ class BaseStrategy:
         logger.debug(f"股票池已经加载所有股票数据:{self.df_equ_pool.shape[0]}")
 
         if self.trade_type == 0:
-            self.df_equd_pool = db.get_df_by_sql(
-                f"select * from stock.mkt_equ_day where trade_date >='{self.dataset_start}' and trade_date <= '{self.dataset_end}' and open_price > 0"
+            df = db.get_df_by_sql(
+                f"select * from stock.mkt_equ_day where trade_date >='{self.dataset_start}' and trade_date <= '{self.dataset_end}' order by id"
             )
+            # 把量能有关的 停牌日设置为空，预期失真不如排出
+            df.loc[df.open_price==0, 'turnover_vol']= np.nan
+            df.loc[df.open_price==0, 'turnover_rate']= np.nan
+            df.loc[df.open_price==0, 'turnover_value']= np.nan
+            df.loc[df.open_price==0, 'deal_amount']= np.nan
+
+            self.df_equd_pool = df
             logger.debug(f"股票池已经设定所有上市股票")
         elif self.trade_type == 1:
             self.df_equd_pool = db.get_df_by_sql(
-                f"select * from stock.fund_day  where trade_date >='{self.dataset_start}'  and trade_date <= '{self.dataset_end}' and open_price > 0"
+                f"select * from stock.fund_day  where trade_date >='{self.dataset_start}'  and trade_date <= '{self.dataset_end}' order by id"
             )
             logger.debug(f"股票池已经设定所有ETF基金")
         if self.df_equd_pool.shape[0] == 0:
@@ -463,22 +471,22 @@ class BaseStrategy:
 
                 if pre.shape[0] > update_pre_equd.shape[0]:
                     # 出现了停牌的股票, 需要特殊处理
-                    suspend_appear = True
                     suspend_pos = pre[~pre.ticker.isin(update_pre_equd.ticker)]
                     logger.debug(
                         f"出现停牌股票，{suspend_pos[['start_date','ticker']]}"
                     )
 
                     # 手动设置close_price 而不能是0 因为要计算净值
-                    pre.loc[
-                        (pre.open_price.isna()) | (pre.open_price == 0),
-                        "close_price",
-                    ] = pre["period_pre_start_close_price"]
-                    pre.loc[
-                        (pre.open_price.isna()) | (pre.open_price == 0),
-                        "sec_short_name",
-                    ] = "当日停牌"
-                    pre.loc[pre.open_price.isna(), "open_price"] = 0
+                    # 停牌日收盘价本来就不是空, 如果为空，说明数据有问题
+                    # pre.loc[
+                    #     (pre.open_price.isna()) | (pre.open_price == 0),
+                    #     "close_price",
+                    # ] = pre["period_pre_start_close_price"]
+                    # pre.loc[
+                    #     (pre.open_price.isna()) | (pre.open_price == 0),
+                    #     "sec_short_name",
+                    # ] = "当日停牌"
+                    # pre.loc[pre.open_price.isna(), "open_price"] = 0
 
                 # 统计上个周期的涨跌幅
                 pre["period_pre_chg_pct"] = (

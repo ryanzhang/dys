@@ -17,6 +17,8 @@ class S8Strategy(BaseStrategy):
     def __init__(self):
         BaseStrategy.__init__(self)
         logger.debug("Construct S8Strategy")
+
+        os.makedirs(self.config.data_folder + "metrics/", exist_ok=True)
         pass
 
     def set_mkt_timing_alg(self):
@@ -155,7 +157,7 @@ class S8Strategy(BaseStrategy):
         logger.debug(f"交易模型已经设定{self.trade_model}")
         return True
 
-@skip
+# @skip
 class TestSmall8Strategy:
     # @pytest.fixture(scope="class")
     # def db(self):
@@ -173,6 +175,7 @@ class TestSmall8Strategy:
         logger.info("TestCase Level Setup is triggered!")
         yield
         logger.info("TestCase Level Tear Down is triggered!")
+
 
     def test_get_rank_in_one_day(self, s8s: S8Strategy):
         # 设置股票池

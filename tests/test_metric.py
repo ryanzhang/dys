@@ -1,4 +1,5 @@
 from datetime import date
+import numpy as np
 import pytest
 import pandas as pd
 from kupy.dbadaptor import DBAdaptor
@@ -18,8 +19,13 @@ class TestMetrics:
     def df(self):
         db = DBAdaptor(is_use_cache=True)
         df = db.get_df_by_sql(
-            "select * from stock.mkt_equ_day where trade_date > '20200709' and open_price>0"
+            "select * from stock.mkt_equ_day where trade_date >= '20200709' and trade_date<='20211231' order by id"
         )
+        # 把量能有关的 停牌日设置为空，预期失真不如排出
+        df.loc[df.open_price==0, 'turnover_vol']= np.nan
+        df.loc[df.open_price==0, 'turnover_rate']= np.nan
+        df.loc[df.open_price==0, 'turnover_value']= np.nan
+        df.loc[df.open_price==0, 'deal_amount']= np.nan
         assert df is not None
         return df
 
@@ -41,10 +47,31 @@ class TestMetrics:
         assert df[sm.name].notna().all()
         logger.debug(df_metric)
 
-
         
     def test_ma_price_aml(self, df):
+        sm = SelectMetric("price_ampl", m.price_ampl)
+        df_metric = sm.apply(df, sm.name, sm.args)
+        df = df.join(df_metric)
+        sm = SelectMetric("ma10_price_ampl", m.ma_any, 10, 'price_ampl' )
+        df_metric = sm.apply(df, sm.name, sm.args)
+        assert sm.name in df_metric.columns
+        df = df.join(df_metric)
+        assert df[sm.name].notna().all()
+        logger.debug(df_metric)
         pass
+
+    def test_N_chg_pct(self, df):
+        sm = SelectMetric("20_chg_pct", m.n_chg_pct, 20)
+        df_metric = sm.apply(df, sm.name, sm.args)
+        assert sm.name in df_metric.columns
+        df = df.join(df_metric)
+        df_sample_null_metric = df.loc[
+            (df["ticker"] == "000002") & (df_metric[sm.name].isna()), :
+        ]
+        assert df_sample_null_metric.shape[0] == 20
+        logger.debug(df_metric)
+        pass
+
 
     def test_momentum(self, df: pd.DataFrame):
         sm = SelectMetric("MOM20_close_price", m.momentum, 20, "close_price")
@@ -167,6 +194,7 @@ class TestMetrics:
         df = df.join(df_metric)
         assert sm.name in df.columns
         df_sample = df[df["ticker"] == "000001"]
+        # 这里注意, 选取的000001 在2021年没有停牌，所以下面等式成立,否则应该小于M-1
         df_sample[df_sample["nm_vol_rate"].isna()].shape[0] == M - 1
 
     def test_vol_rate(self, df: pd.DataFrame):
@@ -178,15 +206,6 @@ class TestMetrics:
         assert sm.name in df.columns
         df_sample = df[df["ticker"] == "000001"]
         df_sample[df_sample["nm_vol_rate"].isna()].shape[0] == N-1
-
-    def test_chg_pct_sum(self, df: pd.DataFrame):
-        N = 20
-        sm = SelectMetric(f"SUM{N}_chg_pct", m.sum_chg_pct, N)
-        df_metric = sm.apply(df, sm.name, sm.args)
-        df = df.join(df_metric)
-        assert sm.name in df.columns
-        df_sample = df[df["ticker"] == "000001"]
-        df_sample[df_sample[f"SUM{N}_chg_pct"].isna()].shape[0] == N - 1
 
     def test_ma_turnover_rate(self, df: pd.DataFrame):
         N = 5

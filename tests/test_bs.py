@@ -26,14 +26,14 @@ class MyStrategy(BaseStrategy):
             BaseStrategy.__init__(self)
         logger.debug("Construct MyStrategy")
 
-    def set_cache_folder(self, path):
-        """For unit test only
+    # def set_cache_folder(self, path):
+    #     """For unit test only
 
-        Args:
-            path (_type_): _description_
-        """        
-        self.config.data_folder = path
-        self._BaseStrategy__mk_folder()
+    #     Args:
+    #         path (_type_): _description_
+    #     """        
+    #     self.config.data_folder = path
+    #     self._BaseStrategy__mk_folder()
 
     def set_mkt_timing_alg(self) -> bool:
         return True
@@ -162,7 +162,6 @@ class TestBaseStrategy:
     def ms(self):
         ms = MyStrategy("20200709", "20211231")
         # Modify the config.data_folder
-        ms.set_cache_folder(ms.config.data_folder + "tests/")
         ms.set_metrics()
         return ms
 
@@ -171,6 +170,10 @@ class TestBaseStrategy:
         logger.info("TestCase Level Setup is triggered!")
         yield
         logger.info("TestCase Level Tear Down is triggered!")
+
+    def test_module_name(self):
+        logger.debug(f"{self.__class__.__name__}")
+        pass
 
     def test_using_default_construct_ok(self):
         ms = MyStrategy()
@@ -355,8 +358,10 @@ class TestBaseStrategy:
             SelectMetric("MOM20_close_price", m.momentum, 20, "close_price")
         )
 
-        directory = sys.path[1] + "/tests/resources/teststrategy"
-        output_directory = sys.path[1] + "/tests/target"
+        directory = sys.path[-1] + "/resources/teststrategy"
+        output_directory = sys.path[-1] + "/target"
+        # logger.debug(f"directory: {sys.path}")
+        os.makedirs(output_directory, exist_ok=True)
         for filename in os.listdir(directory):
             f = os.path.join(directory, filename)
             obf = os.path.join(output_directory, "buy_" + filename)
