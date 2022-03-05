@@ -19,7 +19,7 @@ class TestMetrics:
     def df(self):
         db = DBAdaptor(is_use_cache=True)
         df = db.get_df_by_sql(
-            "select * from stock.mkt_equ_day where trade_date >= '20200709' and trade_date<='20211231' order by id"
+            "select * from stock.mkt_equ_day where trade_date >= '20200709' and trade_date<='20211231' and open_price>0 order by id"
         )
         # 把量能有关的 停牌日设置为空，预期失真不如排出
         df.loc[df.open_price==0, 'turnover_vol']= np.nan
@@ -49,15 +49,22 @@ class TestMetrics:
         logger.debug(df_metric)
 
         
-    def test_ma_price_aml(self, df):
-        sm = SelectMetric("price_ampl", m.price_ampl)
-        df_metric = sm.apply(df, sm.name, sm.args)
+    def test_ma_price_aml_rate(self, df):
+        sm1 = SelectMetric("price_ampl", m.price_ampl)
+        df_metric = sm1.apply(df, sm1.name, sm1.args)
+        assert sm1.name in df_metric.columns
         df = df.join(df_metric)
-        sm = SelectMetric("ma10_price_ampl", m.ma_any, 10, 'price_ampl' )
-        df_metric = sm.apply(df, sm.name, sm.args)
-        assert sm.name in df_metric.columns
+
+        sm2 = SelectMetric("price_ampl_rate", m.price_ampl_rate)
+        df_metric = sm2.apply(df, sm2.name, sm2.args)
+        assert sm2.name in df_metric.columns
         df = df.join(df_metric)
-        assert df[sm.name].notna().all()
+
+        sm3 = SelectMetric("ma10_price_ampl_rate", m.ma_any, 10, 'price_ampl_rate' )
+        df_metric = sm3.apply(df, sm3.name, sm3.args)
+        assert sm3.name in df_metric.columns
+        df = df.join(df_metric)
+        assert df[sm3.name].notna().all()
         logger.debug(df_metric)
         pass
 

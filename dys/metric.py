@@ -33,6 +33,22 @@ class m(object):
         df_metric[name] = (df["highest_price"] - df["lowest_price"])/df['pre_close_price']
         return df_metric
 
+    def price_ampl_rate(df: pd.DataFrame, name, args) -> pd.DataFrame:
+        """当日股价振幅比率, 股价振幅比率=（股价振幅)/当日成交额
+
+        Args:
+            df (pd.DataFrame): _description_
+            name (_type_): _description_
+            args (_type_): _description_
+
+        Returns:
+            pd.DataFrame: _description_
+        """        
+        df_metric = pd.DataFrame(index=df.index)
+        #因为这个比率太小，所以放大10000倍，最终要的是从大到小的排行
+        df_metric[name] = df["price_ampl"]*10000/df['turnover_value']
+        return df_metric
+
     def ma_any(df: pd.DataFrame, name, args) -> pd.DataFrame:
         """当日股价振幅
 
