@@ -83,8 +83,17 @@ class BaseStrategy:
         self.df_choice_equd = self.df_equd_pool
         self.stockutil: StockUtil = StockUtil()
 
+    def set_metric_folder(self, path):
+        """For unit test only
+
+        Args:
+            path (_type_): _description_
+        """        
+        self.config.data_folder = path
+        self.__mk_folder()  
+
     def __mk_folder(self):
-        os.makedirs(f"{self.config.data_folder}/cache/", exist_ok=True)
+        # os.makedirs(f"{self.config.data_folder}/cache/", exist_ok=True)
         os.makedirs(f"{self.config.data_folder}/metrics/", exist_ok=True)
 
     def __load_total_data_set(self):
@@ -112,11 +121,12 @@ class BaseStrategy:
                 f"select * from stock.mkt_equ_day where trade_date >='{self.dataset_start}' and trade_date <= '{self.dataset_end}' order by id"
             )
             # 把量能有关的 停牌日设置为空，预期失真不如排出
-            df.loc[df.open_price==0, 'turnover_vol']= np.nan
-            df.loc[df.open_price==0, 'turnover_rate']= np.nan
-            df.loc[df.open_price==0, 'turnover_value']= np.nan
-            df.loc[df.open_price==0, 'deal_amount']= np.nan
-
+            # df.loc[df.open_price==0, 'turnover_vol']= np.nan
+            # df.loc[df.open_price==0, 'turnover_rate']= np.nan
+            # df.loc[df.open_price==0, 'turnover_value']= np.nan
+            # df.loc[df.open_price==0, 'deal_amount']= np.nan
+            #停牌日行情，排出在外
+            df = df.loc[df.open_price>0,:]
             self.df_equd_pool = df
             logger.debug(f"股票池已经设定所有上市股票")
         elif self.trade_type == 1:
@@ -153,14 +163,14 @@ class BaseStrategy:
 
         if self.debug_sample_date is not None:
             oc = self.df_choice_equd[
-                self.df_choice_equd.trade_date == self.debug_sample_date
+                self.df_choice_equd.trade_date == pd.to_datetime(self.debug_sample_date)
             ].shape[0]
 
         self.df_choice_equd = self.df_choice_equd.query(condition)
 
         if self.debug_sample_date is not None:
             nc = self.df_choice_equd[
-                self.df_choice_equd.trade_date == self.debug_sample_date
+                self.df_choice_equd.trade_date == pd.to_datetime(self.debug_sample_date)
             ].shape[0]
 
         self.select_conditions.append(condition)
@@ -184,7 +194,7 @@ class BaseStrategy:
         # Debug information
         if self.debug_sample_date is not None:
             df = self.df_choice_equd.loc[
-                self.df_choice_equd.trade_date == self.debug_sample_date,
+                self.df_choice_equd.trade_date == pd.to_datetime(self.debug_sample_date),
                 ["sec_short_name", sm.name],
             ]
             logger.debug(f"指标{sm.name}已加载, {self.debug_sample_date} 指标值: {df}")
@@ -288,7 +298,7 @@ class BaseStrategy:
 
         if self.debug_sample_date is not None:
             df = self.df_choice_equd.loc[
-                self.df_choice_equd.trade_date == self.debug_sample_date, :
+                self.df_choice_equd.trade_date == pd.to_datetime(self.debug_sample_date), :
             ]
             logger.debug(f"排序已完成, {self.debug_sample_date}  指标值: {df}")
         logger.debug(f"选好的股票已经排序")
@@ -426,7 +436,7 @@ class BaseStrategy:
                 # 判断是否出现不在自选股K线池里面
                 # 当日自选股
                 cur_choice_equd = self.df_choice_equd.loc[
-                    self.df_choice_equd.trade_date == start_date, :
+                    self.df_choice_equd.trade_date == pd.to_datetime(start_date), :
                 ]
                 not_in_choice_equd_appear = (
                     pre.loc[
@@ -445,7 +455,7 @@ class BaseStrategy:
                                 cur_choice_equd.ticker
                             )
                         )
-                        & (self.df_equd_pool.trade_date == start_date),
+                        & (self.df_equd_pool.trade_date == pd.to_datetime(start_date)),
                         :,
                     ]
                     if not_in_choice_equd.shape[0] > 0:
@@ -914,7 +924,7 @@ class BaseStrategy:
             pd.DataFrame: _description_
         """        
         df = self.df_choice_equd
-        return df.loc[df.trade_date == trade_date, :]
+        return df.loc[df.trade_date == pd.to_datetime(trade_date), :]
 
     def get_rebalance_operation(
         self, trade_date: date, start_date: date = None, end_date: date = None

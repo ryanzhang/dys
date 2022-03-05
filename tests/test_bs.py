@@ -162,6 +162,7 @@ class TestBaseStrategy:
     def ms(self):
         ms = MyStrategy("20200709", "20211231")
         # Modify the config.data_folder
+        ms.set_metric_folder(sys.path[-1] + "/target")
         ms.set_metrics()
         return ms
 

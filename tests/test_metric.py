@@ -174,10 +174,10 @@ class TestMetrics:
         # df_000156.to_csv("/tmp/test_float_rate_000156.csv")
 
     def test_float_value_n(self, df: pd.DataFrame):
-        db = DBAdaptor(is_use_cache=True)
+        # db = DBAdaptor(is_use_cache=True)
         N = 90
         # df_float = db.get_df_by_sql("select * from stock.equ_share_float")
-        sm = SelectMetric("float_rate_{N}", m.float_value, N)
+        sm = SelectMetric(f"float_rate_{N}", m.float_value, N)
         df_metric = sm.apply(df, sm.name, sm.args)
         df = df.join(df_metric)
         assert df[sm.name].notna().all()
