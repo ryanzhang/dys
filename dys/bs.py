@@ -33,9 +33,10 @@ from dys.stockutil import StockUtil
 
 # By default 120 tradeable days between 2009-07-09 to 2020-12-31
 # New k data can be append since 2022-01-04
+# 目前回测数据只支持到2021/12/31日
 
 DEFAULT_TOTAL_START_DATE = "20090709"
-DEFAULT_TOTAL_END_DATE = "20220223"
+DEFAULT_TOTAL_END_DATE = "20211231"
 
 
 class BaseStrategy:
@@ -184,7 +185,7 @@ class BaseStrategy:
         if self.debug_sample_date is not None:
             df = self.df_choice_equd.loc[
                 self.df_choice_equd.trade_date == self.debug_sample_date,
-                ["ticker", sm.name],
+                ["sec_short_name", sm.name],
             ]
             logger.debug(f"指标{sm.name}已加载, {self.debug_sample_date} 指标值: {df}")
 
@@ -411,7 +412,7 @@ class BaseStrategy:
 
         while start_date <= self.end_date:
             end_date = self.stockutil.get_trade_date_by_offset(
-                start_date, -1 * tm.xperiod
+                start_date, int(-1 * tm.xperiod)
             )
 
             # 先判断卖出

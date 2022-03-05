@@ -42,8 +42,9 @@ class TestMetrics:
         assert sm.name in df_metric.columns
         df = df.join(df_metric)
         df_sample_null_metric = df.loc[
-            (df["ticker"] == "000002") & (df_metric[sm.name].isna()), :
+            (df["ticker"] == "838030") & (df_metric[sm.name].isna()), :
         ]
+        assert df_sample_null_metric.shape[0] == 0
         assert df[sm.name].notna().all()
         logger.debug(df_metric)
 
@@ -199,13 +200,13 @@ class TestMetrics:
 
     def test_vol_rate(self, df: pd.DataFrame):
         N = 5
-        M = 20
-        sm = SelectMetric(f"nm_vol_rate", m.vol_rate, N)
+        sm = SelectMetric(f"ma{N}_vol_rate", m.vol_rate, N)
         df_metric = sm.apply(df, sm.name, sm.args)
         df = df.join(df_metric)
         assert sm.name in df.columns
-        df_sample = df[df["ticker"] == "000001"]
-        df_sample[df_sample["nm_vol_rate"].isna()].shape[0] == N-1
+        df_sample = df[df["ticker"] == "000586"]
+        logger.debug(f'{df_sample.iloc[0].trade_date}{df_sample.iloc[0].sec_short_name} {df_sample}')
+        df_sample[df_sample[sm.name].isna()].shape[0] == N-1
 
     def test_ma_turnover_rate(self, df: pd.DataFrame):
         N = 5
