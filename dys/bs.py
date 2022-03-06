@@ -650,7 +650,8 @@ class BaseStrategy:
 
             df_candidate = self.get_choice_equ_by_date(start_date)
 
-            df_candidate.loc[:, "sale_days"] = 100000
+            # 此处使用.loc[:, "sale_days"]会有bug，如果df_candidate 为空就会出错
+            df_candidate["sale_days"] = 100000
             # 增加卖出时间列
             # 增加临时卖出天数列 , 0 表示没有卖过
             if (
@@ -878,7 +879,7 @@ class BaseStrategy:
         """        
         start_date = self.start_date
         end_date = self.end_date
-        final_roi = self.get_roi_by_date(start_date, end_date)
+        final_roi = self.get_roi_by_date()
         annu_roi = final_roi ** (1 / ((end_date - start_date).days / 365)) - 1
         return annu_roi
         # df= df_position_mfst

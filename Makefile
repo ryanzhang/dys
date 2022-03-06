@@ -120,7 +120,8 @@ init:             ## Initialize the project based on an application template.
 	@./.github/init.sh
 
 .PHONY: testdist stagedeploy systest sdist
-sdist: clean test testdist systest
+#sdist: clean test testdist systest
+sdist: clean testdist systest
 
 testdist: clean
 	@git checkout dys/VERSION
