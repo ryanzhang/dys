@@ -54,6 +54,7 @@ class BaseStrategy:
         # 成员
         self.df_equ_pool = None
         self.df_equd_pool = None
+        self.equd_groupby_date = None
 
         self.select_conditions = None
         self.debug_sample_date = None
@@ -382,6 +383,7 @@ class BaseStrategy:
         Returns:
             pd.DataFrame: _description_
         """
+        starttime_0 = datetime.now()
         tm: TradeModel = self.trade_model
         # 11 columns
         position_mfst_columns = [
@@ -812,6 +814,8 @@ class BaseStrategy:
         # self.df_position_mfst['rolling_on_year_max_net'] = self.df_position_mfst['net'].rolling(243, min_periods=1).max
         # self.df_position_mfst['drawback_pct'] = self.df_position_mfst['net']/max_net -1
 
+        endtime_0 = datetime.now()
+        logger.debug(f'计算一天花费时间{(endtime_0-starttime_0).total_seconds()*1000} 毫秒')
         return self.df_position_mfst
 
     def get_fmt_position_mfst(
@@ -948,8 +952,9 @@ class BaseStrategy:
             pd.DataFrame: _description_
         """        
         starttime = datetime.now()
-        df = self.df_equd_pool
-        df = df.loc[df.trade_date == pd.to_datetime(trade_date), :]
+        if self.equd_groupby_date is None:
+            self.equd_groupby_date = self.df_equd_pool.groupby('trade_date')
+        df = self.equd_groupby_date.get_group(trade_date)
         # 筛选
         df = df.query(self.select_conditions)
         if pos is not None:
