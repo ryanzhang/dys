@@ -4,6 +4,9 @@ Changelog
 
 (unreleased)
 ------------
+- Small improvement. [Ryan Zhang]
+- Pump version up 0.2.0.dev. [Ryan Zhang]
+- Release: version 0.2.0 🚀 [Ryan Zhang]
 - Remove df_choice_equd. [Ryan Zhang]
 - 优化代码. [Ryan Zhang]
 - 引入groupby对象 解决定位当日股票速度问题. [Ryan Zhang]
