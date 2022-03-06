@@ -158,22 +158,23 @@ class BaseStrategy:
         Args:
             condition (_type_): _description_
         """        
-        if self.select_conditions is None:
-            self.select_conditions = list()
-
         if self.debug_sample_date is not None:
             oc = self.df_choice_equd[
                 self.df_choice_equd.trade_date == pd.to_datetime(self.debug_sample_date)
             ].shape[0]
 
         self.df_choice_equd = self.df_choice_equd.query(condition)
+        if self.select_conditions :
+            self.select_conditions = self.select_conditions + " and " + condition 
+        else:
+            self.select_conditions = condition
 
         if self.debug_sample_date is not None:
             nc = self.df_choice_equd[
                 self.df_choice_equd.trade_date == pd.to_datetime(self.debug_sample_date)
             ].shape[0]
 
-        self.select_conditions.append(condition)
+        # self.select_conditions.append(condition)
         if self.debug_sample_date is not None:
             logger.debug(
                 f"已加载条件{condition}, {self.debug_sample_date} 现存:{nc} 过滤掉: {nc-oc}个股票"
@@ -421,6 +422,8 @@ class BaseStrategy:
         # 剩余可购买仓位
         # 当前净值
         cur_net = 1
+        # 当日自选股行情
+        cur_choice_equd = None
 
         while start_date <= self.end_date:
             starttime = datetime.now()
@@ -438,38 +441,39 @@ class BaseStrategy:
 
                 # 判断是否出现不在自选股K线池里面
                 # 当日自选股
-                cur_choice_equd = self.df_choice_equd.loc[
-                    self.df_choice_equd.trade_date == pd.to_datetime(start_date), :
-                ]
-                not_in_choice_equd = pre.loc[
-                    (~pre.ticker.isin(cur_choice_equd.ticker)), :
-                ]
-                not_in_choice_equd_appear = (
-                    not_in_choice_equd.shape[0] >0
-                )
+                # cur_choice_equd = self.df_choice_equd.loc[
+                #     self.df_choice_equd.trade_date == pd.to_datetime(start_date), :
+                # ]
+                cur_choice_equd = self.get_daily_choice_equd(start_date, pre)
+                # not_in_choice_equd = pre.loc[
+                #     (~pre.ticker.isin(cur_choice_equd.ticker)), :
+                # ]
+                # not_in_choice_equd_appear = (
+                #     not_in_choice_equd.shape[0] >0
+                # )
 
-                if not_in_choice_equd_appear:
-                    starttime_1 = datetime.now()
-                    # 取得当日自选股的equd行情(带指标），然后加入持仓股进入自选股
-                    # 需要重新排序
-                    cur_equd_pool = self.df_equd_pool.loc[(self.df_equd_pool.trade_date == pd.to_datetime(start_date)),:]
-                    not_in_choice_equd = cur_equd_pool.loc[
-                        (cur_equd_pool.ticker.isin(not_in_choice_equd.ticker)),
-                        :,
-                    ]
-                    endtime_1 = datetime.now()
-                    logger.debug(f'查询outlier股票 {(endtime_1-starttime_1).total_seconds()*1000} 毫秒')                    
-                    if not_in_choice_equd.shape[0] > 0:
-                        logger.debug(
-                            f"出现不在自选股K线池, 但是已经持仓的股票里面{not_in_choice_equd.trade_date} {not_in_choice_equd.sec_short_name}"
-                        )
+                # if not_in_choice_equd_appear:
+                #     starttime_1 = datetime.now()
+                #     # 取得当日自选股的equd行情(带指标），然后加入持仓股进入自选股
+                #     # 需要重新排序
+                #     cur_equd_pool = self.df_equd_pool.loc[(self.df_equd_pool.trade_date == pd.to_datetime(start_date)),:]
+                #     not_in_choice_equd = cur_equd_pool.loc[
+                #         (cur_equd_pool.ticker.isin(not_in_choice_equd.ticker)),
+                #         :,
+                #     ]
+                #     endtime_1 = datetime.now()
+                #     logger.debug(f'查询outlier股票 {(endtime_1-starttime_1).total_seconds()*1000} 毫秒')                    
+                #     if not_in_choice_equd.shape[0] > 0:
+                #         logger.debug(
+                #             f"出现不在自选股K线池, 但是已经持仓的股票里面{not_in_choice_equd.trade_date} {not_in_choice_equd.sec_short_name}"
+                #         )
 
-                        # 加入当日的自选股，因为已经持有
-                        cur_choice_equd = pd.concat(
-                            [cur_choice_equd, not_in_choice_equd]
-                        )
-                        # 对当日重新排名
-                        cur_choice_equd = self.rank_df(cur_choice_equd)
+                #         # 加入当日的自选股，因为已经持有
+                #         cur_choice_equd = pd.concat(
+                #             [cur_choice_equd, not_in_choice_equd]
+                #         )
+                #         # 对当日重新排名
+                #         cur_choice_equd = self.rank_df(cur_choice_equd)
 
 
                 update_pre_equd = cur_choice_equd.loc[
@@ -651,32 +655,34 @@ class BaseStrategy:
             # if buy_partial is not None and buy_partial.shape[0]>0:
             #     # 补仓
 
-            df_candidate = self.get_choice_equ_by_date(start_date)
-
-            # 此处使用.loc[:, "sale_days"]会有bug，如果df_candidate 为空就会出错
-            df_candidate["sale_days"] = 100000
+            # cur_choice_equd = self.get_choice_equ_by_date(start_date)
+            if cur_choice_equd is None:
+                cur_choice_equd = self.get_daily_choice_equd(start_date)
+            logger.debug(f"周期:{period} {start_date}选股{cur_choice_equd.shape[0]}")
+            # 此处使用.loc[:, "sale_days"]会有bug，如果cur_choice_equd 为空就会出错
+            cur_choice_equd["sale_days"] = 100000
             # 增加卖出时间列
             # 增加临时卖出天数列 , 0 表示没有卖过
             if (
                 self.df_sale_mfst.shape[0] > 0
-                and self.df_sale_mfst.ticker.isin(df_candidate.ticker).any()
+                and self.df_sale_mfst.ticker.isin(cur_choice_equd.ticker).any()
             ):
                 saled_ticker = self.df_sale_mfst[["ticker", "sale_date"]]
                 saled_ticker.drop_duplicates(
                     subset="ticker", keep="last", inplace=True
                 )
 
-                df_candidate = pd.merge(
-                    df_candidate, saled_ticker, on="ticker", how="left"
+                cur_choice_equd = pd.merge(
+                    cur_choice_equd, saled_ticker, on="ticker", how="left"
                 )
-                df_candidate["sale_days"] = (
-                    df_candidate["trade_date"] - df_candidate["sale_date"]
+                cur_choice_equd["sale_days"] = (
+                    cur_choice_equd["trade_date"] - cur_choice_equd["sale_date"]
                 ).dt.days
-                df_candidate.drop(["sale_date"], axis=1, inplace=True)
+                cur_choice_equd.drop(["sale_date"], axis=1, inplace=True)
 
-            df_candidate["sale_days"].fillna(100000, inplace=True)
+            cur_choice_equd["sale_days"].fillna(100000, inplace=True)
 
-            df_buy_candidate = df_candidate.query(tm.buy_criterial)
+            df_buy_candidate = cur_choice_equd.query(tm.buy_criterial)
 
             df_buy_candidate = df_buy_candidate[
                 ~df_buy_candidate.ticker.isin(cur.ticker)
@@ -931,6 +937,32 @@ class BaseStrategy:
         """        
         df = self.df_choice_equd
         return df.loc[df.trade_date == pd.to_datetime(trade_date), :]
+
+    def get_daily_choice_equd(self, trade_date: date, pos:pd.DataFrame=None) -> pd.DataFrame:
+        """获取某日的选股, 并且要包含每日持仓股
+
+        Args:
+            trade_date (date): _description_
+
+        Returns:
+            pd.DataFrame: _description_
+        """        
+        starttime = datetime.now()
+        df = self.df_equd_pool
+        df = df.loc[df.trade_date == pd.to_datetime(trade_date), :]
+        # 筛选
+        df = df.query(self.select_conditions)
+        if pos is not None:
+            outlier = pos.loc[~pos.ticker.isin(df.ticker),:]
+            if outlier.shape[0] > 0:
+                logger.debug(f"已把跳出自选股的持仓中的股票加入到自选股中 {outlier}")
+                df = pd.concat([df, outlier[df.columns[2:len(df.columns)]]])
+
+        # 排序
+        df = self.rank_df(df)
+        endtime = datetime.now()
+        logger.debug(f"每日实时选股以及排序完成, 花费时间:{(endtime-starttime).total_seconds()*1000}毫秒")
+        return df
 
     def get_rebalance_operation(
         self, trade_date: date, start_date: date = None, end_date: date = None
