@@ -304,7 +304,7 @@ class BaseStrategy:
         logger.debug(f"选好的股票已经排序")
         return df
 
-    def rank_oneday(self, df: pd.DataFrame) -> pd.DataFrame:
+    def rank_df(self, df: pd.DataFrame) -> pd.DataFrame:
         """对给定的dataframe 里面的元素进行排序, 不是针对全量日期, 是针对一天的
 
         Raises:
@@ -313,6 +313,7 @@ class BaseStrategy:
         Returns:
             pd.DataFrame: _description_
         """
+        starttime = datetime.now()
 
         df["rank"] = 0
         tw = 0
@@ -345,9 +346,10 @@ class BaseStrategy:
             ascending=False,
         )
 
-        df.sort_values(["trade_date", "xrank"], ascending=False, inplace=True)
+        df.sort_values(["xrank"], ascending=False, inplace=True)
 
-        logger.debug(f"选好的股票已经排序完成")
+        endtime = datetime.now()
+        logger.debug(f"选好的股票已重新排序完成, 花费时间:{(endtime-starttime).total_seconds()*1000}毫秒")
         return df
 
     def select_equd_by_daterange(
@@ -439,36 +441,36 @@ class BaseStrategy:
                 cur_choice_equd = self.df_choice_equd.loc[
                     self.df_choice_equd.trade_date == pd.to_datetime(start_date), :
                 ]
+                not_in_choice_equd = pre.loc[
+                    (~pre.ticker.isin(cur_choice_equd.ticker)), :
+                ]
                 not_in_choice_equd_appear = (
-                    pre.loc[
-                        (~pre.ticker.isin(cur_choice_equd.ticker)), :
-                    ].shape[0]
-                    > 0
+                    not_in_choice_equd.shape[0] >0
                 )
 
                 if not_in_choice_equd_appear:
+                    starttime_1 = datetime.now()
                     # 取得当日自选股的equd行情(带指标），然后加入持仓股进入自选股
                     # 需要重新排序
-                    not_in_choice_equd = self.df_equd_pool.loc[
-                        (self.df_equd_pool.ticker.isin(pre.ticker))
-                        & (
-                            ~self.df_equd_pool.ticker.isin(
-                                cur_choice_equd.ticker
-                            )
-                        )
-                        & (self.df_equd_pool.trade_date == pd.to_datetime(start_date)),
+                    cur_equd_pool = self.df_equd_pool.loc[(self.df_equd_pool.trade_date == pd.to_datetime(start_date)),:]
+                    not_in_choice_equd = cur_equd_pool.loc[
+                        (cur_equd_pool.ticker.isin(not_in_choice_equd.ticker)),
                         :,
                     ]
+                    endtime_1 = datetime.now()
+                    logger.debug(f'查询outlier股票 {(endtime_1-starttime_1).total_seconds()*1000} 毫秒')                    
                     if not_in_choice_equd.shape[0] > 0:
                         logger.debug(
                             f"出现不在自选股K线池, 但是已经持仓的股票里面{not_in_choice_equd.trade_date} {not_in_choice_equd.sec_short_name}"
                         )
+
                         # 加入当日的自选股，因为已经持有
                         cur_choice_equd = pd.concat(
                             [cur_choice_equd, not_in_choice_equd]
                         )
                         # 对当日重新排名
-                        cur_choice_equd = self.rank_oneday(cur_choice_equd)
+                        cur_choice_equd = self.rank_df(cur_choice_equd)
+
 
                 update_pre_equd = cur_choice_equd.loc[
                     cur_choice_equd.ticker.isin(pre.ticker),
@@ -794,7 +796,7 @@ class BaseStrategy:
             period = period + 1
             start_date = end_date
             endtime = datetime.now()
-            logger.debug(f'计算一天花费时间{(endtime-starttime).seconds} 秒')
+            logger.debug(f'计算一天花费时间{(endtime-starttime).total_seconds()*1000} 毫秒')
 
         # 计算历史最大回撤
         max_net = self.df_position_mfst["net"].cummax()

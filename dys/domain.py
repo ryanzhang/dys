@@ -45,6 +45,7 @@ class TradeModel:
         mini_unit_buy_pct: float,
         buy_fee_rate: float,
         sale_fee_rate: float,
+        sale_rank: int = None,
         mmf_enable: bool = False,
     ):
         # 调仓周期
@@ -69,6 +70,8 @@ class TradeModel:
         self.buy_fee_rate = buy_fee_rate
         # 卖出手续费
         self.sale_fee_rate = sale_fee_rate
+        #卖出排行
+        self.sale_rank = sale_rank
         # 备选股票数量
         self.bench_num = bench_num
         self.buy_criterial = None

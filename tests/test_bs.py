@@ -136,6 +136,7 @@ class MyStrategy(BaseStrategy):
             mini_unit_buy_pct=1,
             buy_fee_rate=0.3 / 1000,
             sale_fee_rate=2 / 1000,
+            sale_rank=34,
         )
         self.trade_model.append_buy_criterial("rank<=8")
         self.trade_model.append_buy_criterial("chg_pct>-0.098")
@@ -162,7 +163,7 @@ class TestBaseStrategy:
     def ms(self):
         ms = MyStrategy("20200709", "20211231")
         # Modify the config.data_folder
-        ms.set_metric_folder(sys.path[-1] + "/target")
+        ms.set_metric_folder(os.getcwd() + "/target")
         ms.set_metrics()
         return ms
 
@@ -280,7 +281,7 @@ class TestBaseStrategy:
         df = ms.rank()
         assert "rank" in df.columns
         assert "MOM20_close_price_subrank" in df.columns
-        df.to_csv("/tmp/test_ranking.csv")
+        df.to_csv(f"{os.getcwd()}/test_ranking.csv")
         logger.debug(df.columns)
         logger.debug(
             df[
@@ -305,7 +306,7 @@ class TestBaseStrategy:
         df = ms.rank()
         assert "rank" in df.columns
         assert "close_price_subrank" in df.columns
-        df.to_csv("/tmp/test_ranking.csv")
+        df.to_csv(f"{os.getcwd()}/test_ranking.csv")
         logger.debug(df.columns)
         logger.debug(
             df[
@@ -335,7 +336,7 @@ class TestBaseStrategy:
         df = ms.rank()
         assert "rank" in df.columns
         assert "mom20_subrank" in df.columns
-        df.to_csv("/tmp/test_ranking.csv")
+        df.to_csv(f"{os.getcwd()}/test_ranking.csv")
         logger.debug(
             df[
                 [
@@ -359,8 +360,8 @@ class TestBaseStrategy:
             SelectMetric("MOM20_close_price", m.momentum, 20, "close_price")
         )
 
-        directory = sys.path[-1] + "/resources/teststrategy"
-        output_directory = sys.path[-1] + "/target"
+        directory = os.getcwd() + "/resources/teststrategy"
+        output_directory = os.getcwd() + "/target"
         # logger.debug(f"directory: {sys.path}")
         os.makedirs(output_directory, exist_ok=True)
         for filename in os.listdir(directory):
@@ -402,15 +403,15 @@ class TestBaseStrategy:
         max_roi = ms.get_history_max_roi()
         final_roi = ms.get_roi_by_date()
         assert mfst is not None
-        mfst.to_csv("/tmp/test_ms_position_mfst.csv")
-        ms.df_sale_mfst.to_csv("/tmp/test_ms_sale_mfst.csv")
+        mfst.to_csv(f"{os.getcwd()}/target/test_ms_position_mfst.csv")
+        ms.df_sale_mfst.to_csv(f"{os.getcwd()}/target/test_ms_sale_mfst.csv")
         # logger.debug(mfst)
         logger.info(f"最终收益:{final_roi}")
         logger.info(f"最大收益:{max_roi}")
         logger.info(f"最大回撤:{max_drawback}")
         # ms.T.drop_duplicates().T
-        ms.df_position_mfst.to_parquet("/tmp/position_mfst_2010.parquet")
-        ms.df_sale_mfst.to_parquet("/tmp/sale_mfst_2010.parquet")
+        ms.df_position_mfst.to_parquet(f"{os.getcwd()}/target/position_mfst_2010.parquet")
+        ms.df_sale_mfst.to_parquet(f"{os.getcwd()}/target/sale_mfst_2010.parquet")
 
     @skip
     def test_get_trade_mfst_by_date(self, ms: MyStrategy):
@@ -440,7 +441,7 @@ class TestBaseStrategy:
         df = ms.rank()
         assert "rank" in df.columns
         assert "mom20_subrank" in df.columns
-        df.to_csv("/tmp/test_ranking.csv")
+        df.to_csv(f"{os.getcwd()}/target/test_ranking.csv")
         logger.debug(
             df[
                 [
