@@ -69,8 +69,8 @@ class BaseStrategy:
         # 历史卖出清单
         self.df_sale_mfst = pd.DataFrame()
 
-        # 过滤出来的股票池
-        self.df_choice_equd = None
+        # # 过滤出来的股票池
+        # self.df_equd_pool = None
 
         # Strategy Config
         self.config = StrategyConfig()
@@ -81,7 +81,7 @@ class BaseStrategy:
 
         self.__load_total_data_set()
 
-        self.df_choice_equd = self.df_equd_pool
+        # self.df_equd_pool = self.df_equd_pool
         self.stockutil: StockUtil = StockUtil()
 
     def set_metric_folder(self, path):
@@ -160,19 +160,19 @@ class BaseStrategy:
             condition (_type_): _description_
         """        
         # if self.debug_sample_date is not None:
-        #     oc = self.df_choice_equd[
-        #         self.df_choice_equd.trade_date == pd.to_datetime(self.debug_sample_date)
+        #     oc = self.df_equd_pool[
+        #         self.df_equd_pool.trade_date == pd.to_datetime(self.debug_sample_date)
         #     ].shape[0]
 
-        # self.df_choice_equd = self.df_choice_equd.query(condition)
+        # self.df_equd_pool = self.df_equd_pool.query(condition)
         if self.select_conditions :
             self.select_conditions = self.select_conditions + " and " + condition 
         else:
             self.select_conditions = condition
 
         # if self.debug_sample_date is not None:
-        #     nc = self.df_choice_equd[
-        #         self.df_choice_equd.trade_date == pd.to_datetime(self.debug_sample_date)
+        #     nc = self.df_equd_pool[
+        #         self.df_equd_pool.trade_date == pd.to_datetime(self.debug_sample_date)
         #     ].shape[0]
 
         # self.select_conditions.append(condition)
@@ -188,15 +188,15 @@ class BaseStrategy:
             sm (SelectMetric): _description_
             reset_cache (bool, optional): _description_. Defaults to False.
         """        
-        self.df_choice_equd[sm.name] = self.__add_metric_column(
+        self.df_equd_pool[sm.name] = self.__add_metric_column(
             sm, reset_cache
         )
         self.df_metrics.append(sm.name)
 
         # Debug information
         if self.debug_sample_date is not None:
-            df = self.df_choice_equd.loc[
-                self.df_choice_equd.trade_date == pd.to_datetime(self.debug_sample_date),
+            df = self.df_equd_pool.loc[
+                self.df_equd_pool.trade_date == pd.to_datetime(self.debug_sample_date),
                 ["sec_short_name", sm.name],
             ]
             logger.debug(f"指标{sm.name}已加载, {self.debug_sample_date} 指标值: {df}")
@@ -214,13 +214,13 @@ class BaseStrategy:
 
         if reset_cache or not os.path.exists(metric_cache_file):
             # Compute the metric
-            df_metric = sm.apply(self.df_choice_equd, sm.name, sm.args)
+            df_metric = sm.apply(self.df_equd_pool, sm.name, sm.args)
             df_metric.to_parquet(metric_cache_file, index=True)
         else:
             # Load from file
             df_metric = pd.read_parquet(metric_cache_file)
 
-        logger.debug(f"指标{sm.name}已经加载到df_choice_equd 列表中")
+        logger.debug(f"指标{sm.name}已经加载到df_equd_pool 列表中")
         return df_metric[sm.name]
 
     def post_hook_select_equ(self):
@@ -236,10 +236,10 @@ class BaseStrategy:
         Raises:
             Exception: _description_
         """        
-        cols = self.df_choice_equd.columns
+        cols = self.df_equd_pool.columns
 
         if rf.name not in cols:
-            raise Exception(f"排序指标没有在df_choice_equd列中找到:{cols}")
+            raise Exception(f"排序指标没有在df_equd_pool列中找到:{cols}")
 
         if self.rank_factors is None:
             self.rank_factors = list()
@@ -262,13 +262,13 @@ class BaseStrategy:
             pd.DataFrame: _description_
         """
 
-        df: pd.DataFrame = self.df_choice_equd
+        df: pd.DataFrame = self.df_equd_pool
         df["rank"] = 0
         tw = 0
         for rf in self.rank_factors:
             if rf.name not in df.columns:
                 raise Exception(
-                    f"排序因子{rf.name}无法在df_choice_equd的列中找到:{df.columns}"
+                    f"排序因子{rf.name}无法在df_equd_pool的列中找到:{df.columns}"
                 )
             subrank_column = rf.name + "_subrank"
             df[subrank_column] = (
@@ -296,11 +296,11 @@ class BaseStrategy:
 
         df.sort_values(["trade_date", "xrank"], ascending=False, inplace=True)
 
-        self.df_choice_equd = df
+        self.df_equd_pool = df
 
         if self.debug_sample_date is not None:
-            df = self.df_choice_equd.loc[
-                self.df_choice_equd.trade_date == pd.to_datetime(self.debug_sample_date), :
+            df = self.df_equd_pool.loc[
+                self.df_equd_pool.trade_date == pd.to_datetime(self.debug_sample_date), :
             ]
             logger.debug(f"排序已完成, {self.debug_sample_date}  指标值: {df}")
         logger.debug(f"选好的股票已经排序")
@@ -322,7 +322,7 @@ class BaseStrategy:
         for rf in self.rank_factors:
             if rf.name not in df.columns:
                 raise Exception(
-                    f"排序因子{rf.name}无法在df_choice_equd的列中找到:{df.columns}"
+                    f"排序因子{rf.name}无法在df_equd_pool的列中找到:{df.columns}"
                 )
             subrank_column = rf.name + "_subrank"
             df[subrank_column] = (
@@ -443,8 +443,8 @@ class BaseStrategy:
 
                 # 判断是否出现不在自选股K线池里面
                 # 当日自选股
-                # cur_choice_equd = self.df_choice_equd.loc[
-                #     self.df_choice_equd.trade_date == pd.to_datetime(start_date), :
+                # cur_choice_equd = self.df_equd_pool.loc[
+                #     self.df_equd_pool.trade_date == pd.to_datetime(start_date), :
                 # ]
                 cur_choice_equd = self.get_daily_choice_equd(start_date, pre)
                 # not_in_choice_equd = pre.loc[
@@ -926,7 +926,7 @@ class BaseStrategy:
             pd.DataFrame: _description_
         """
         mfst = pd.DataFrame()
-        # df = self.df_choice_equd
+        # df = self.df_equd_pool
 
         return mfst
 
@@ -939,7 +939,7 @@ class BaseStrategy:
         Returns:
             pd.DataFrame: _description_
         """        
-        df = self.df_choice_equd
+        df = self.df_equd_pool
         return df.loc[df.trade_date == pd.to_datetime(trade_date), :]
 
     def get_daily_choice_equd(self, trade_date: date, pos:pd.DataFrame=None) -> pd.DataFrame:
@@ -1035,7 +1035,7 @@ class BaseStrategy:
         Returns:
             pd.DataFrame: _description_
         """    
-        df = self.df_choice_equd
+        df = self.df_equd_pool
         df.trade_date = pd.to_datetime(df.trade_date)
         # choice.ticker=choice.ticker.astype('string')
         choice.trade_date = pd.to_datetime(choice.trade_date)
