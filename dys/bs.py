@@ -148,9 +148,9 @@ class BaseStrategy:
         df = self.df_equd_pool
         oc = df.shape[0]
         df = df[df["ticker"].isin(self.df_equ_pool["ticker"])]
-        self.df_choice_equd = df
-        nc = self.df_choice_equd.shape[0]
-        logger.debug(f"K线数据已根据股票池更新{self.df_choice_equd.shape[0]}, 过滤掉{nc-oc}")
+        self.df_equd_pool = df
+        nc = self.df_equd_pool.shape[0]
+        logger.debug(f"K线数据已根据股票池更新{self.df_equd_pool.shape[0]}, 过滤掉{nc-oc}")
         return df
 
     def append_select_condition(self, condition):
@@ -159,27 +159,27 @@ class BaseStrategy:
         Args:
             condition (_type_): _description_
         """        
-        if self.debug_sample_date is not None:
-            oc = self.df_choice_equd[
-                self.df_choice_equd.trade_date == pd.to_datetime(self.debug_sample_date)
-            ].shape[0]
+        # if self.debug_sample_date is not None:
+        #     oc = self.df_choice_equd[
+        #         self.df_choice_equd.trade_date == pd.to_datetime(self.debug_sample_date)
+        #     ].shape[0]
 
-        self.df_choice_equd = self.df_choice_equd.query(condition)
+        # self.df_choice_equd = self.df_choice_equd.query(condition)
         if self.select_conditions :
             self.select_conditions = self.select_conditions + " and " + condition 
         else:
             self.select_conditions = condition
 
-        if self.debug_sample_date is not None:
-            nc = self.df_choice_equd[
-                self.df_choice_equd.trade_date == pd.to_datetime(self.debug_sample_date)
-            ].shape[0]
+        # if self.debug_sample_date is not None:
+        #     nc = self.df_choice_equd[
+        #         self.df_choice_equd.trade_date == pd.to_datetime(self.debug_sample_date)
+        #     ].shape[0]
 
         # self.select_conditions.append(condition)
-        if self.debug_sample_date is not None:
-            logger.debug(
-                f"已加载条件{condition}, {self.debug_sample_date} 现存:{nc} 过滤掉: {nc-oc}个股票"
-            )
+        # if self.debug_sample_date is not None:
+        #     logger.debug(
+        #         f"已加载条件{condition}, {self.debug_sample_date} 现存:{nc} 过滤掉: {nc-oc}个股票"
+        # )
 
     def append_metric(self, sm: SelectMetric, reset_cache: bool = False):
         """增加指标
@@ -358,7 +358,7 @@ class BaseStrategy:
         self, start_date: date, end_date: date = None
     ) -> pd.DataFrame:
 
-        df = self.df_choice_equd
+        df = self.df_equd_pool
         self.start_date = start_date
 
         if end_date is None:
@@ -369,7 +369,7 @@ class BaseStrategy:
             df = df[
                 (df.trade_date >= pd.to_datetime(start_date)) & (df.trade_date <= pd.to_datetime(end_date))
             ]
-        self.df_choice_equd = df
+        self.df_equd_pool = df
 
         return df
 
@@ -804,7 +804,7 @@ class BaseStrategy:
             period = period + 1
             start_date = end_date
             endtime = datetime.now()
-            logger.debug(f'计算一天花费时间{(endtime-starttime).total_seconds()*1000} 毫秒')
+            logger.debug(f'计算历史回测花费时间{(endtime-starttime).total_seconds()*1000} 毫秒')
 
         # 计算历史最大回撤
         max_net = self.df_position_mfst["net"].cummax()
@@ -966,7 +966,7 @@ class BaseStrategy:
         # 排序
         df = self.rank_df(df)
         endtime = datetime.now()
-        logger.debug(f"每日实时选股以及排序完成, 花费时间:{(endtime-starttime).total_seconds()*1000}毫秒")
+        logger.debug(f"每日实时选股+ 排序完成, 花费时间:{(endtime-starttime).total_seconds()*1000}毫秒")
         return df
 
     def get_rebalance_operation(

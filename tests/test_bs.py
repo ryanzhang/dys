@@ -391,11 +391,12 @@ class TestBaseStrategy:
     def test_generate_position_mfst(self, ms: MyStrategy):
         start_date = date(2021, 1, 4)
         end_date = date(2021, 12, 31)
+        # 设置自选股, 这个是设定股票池的，不在股票池的股票，全历史都会排出掉，回测中不再会出现 
         ms.set_equ_pool()
         ms.set_select_condition()
         ms.select_equd_by_daterange(start_date=start_date, end_date=end_date)
         ms.set_rank_factors()
-        ms.rank()
+        # ms.rank()
         ms.set_trade_model()
         ms.generate_position_mfst()
         mfst = ms.get_fmt_position_mfst()
@@ -419,37 +420,3 @@ class TestBaseStrategy:
         df = ms.get_trade_mfst_by_date(the_date)
         assert df is not None
         logger.debug(f"{the_date} 共选出 {df.shape[0]}")
-
-    @skip
-    def test_roi_mfst(self, ms: MyStrategy):
-
-        ms.set_equ_pool()
-        ms.set_equd_pool()
-        ms.set_select_equ_condition("close_price<20")
-        ms.select_equd_by_daterange(date(2022, 1, 4))
-        ms.append_metric(SelectMetric("mom20", m.momentum, 20, "close_price"))
-        ms._BaseStrategy__add_metric_column()
-        ms.post_hook_select_equ()
-        ms._BaseStrategy__select_equd_by_expression()
-
-        # 由大到小排列
-        ms.append_rankfactor(RankFactor(name="mom20", weight=2))
-        # 由小到大
-        ms.append_rankfactor(
-            RankFactor(name="close_price", bigfirst=False, weight=1)
-        )
-        df = ms.rank()
-        assert "rank" in df.columns
-        assert "mom20_subrank" in df.columns
-        df.to_csv(f"{os.getcwd()}/target/test_ranking.csv")
-        logger.debug(
-            df[
-                [
-                    "trade_date",
-                    "ticker",
-                    "close_price_subrank",
-                    "mom20_subrank",
-                    "rank",
-                ]
-            ]
-        )
