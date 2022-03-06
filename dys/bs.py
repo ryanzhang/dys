@@ -658,7 +658,7 @@ class BaseStrategy:
             #     # 补仓
 
             # cur_choice_equd = self.get_choice_equ_by_date(start_date)
-            if cur_choice_equd is None:
+            if cur_choice_equd is None or cur_choice_equd.shape[0]==0 :
                 cur_choice_equd = self.get_daily_choice_equd(start_date)
             logger.debug(f"周期:{period} {start_date}选股{cur_choice_equd.shape[0]}")
             # 此处使用.loc[:, "sale_days"]会有bug，如果cur_choice_equd 为空就会出错
@@ -804,7 +804,7 @@ class BaseStrategy:
             period = period + 1
             start_date = end_date
             endtime = datetime.now()
-            logger.debug(f'计算历史回测花费时间{(endtime-starttime).total_seconds()*1000} 毫秒')
+            logger.debug(f'计算一日回测花费时间{(endtime-starttime).total_seconds()*1000} 毫秒')
 
         # 计算历史最大回撤
         max_net = self.df_position_mfst["net"].cummax()
@@ -815,7 +815,7 @@ class BaseStrategy:
         # self.df_position_mfst['drawback_pct'] = self.df_position_mfst['net']/max_net -1
 
         endtime_0 = datetime.now()
-        logger.debug(f'计算一天花费时间{(endtime_0-starttime_0).total_seconds()*1000} 毫秒')
+        logger.debug(f'计算历史回测花费时间{(endtime_0-starttime_0).total_seconds()*1000} 毫秒')
         return self.df_position_mfst
 
     def get_fmt_position_mfst(
@@ -1043,3 +1043,7 @@ class BaseStrategy:
             choice, df, on=["ticker", "trade_date"], how="left"
         )
         return choice
+
+    def reset_backtest_result(self):
+        self.df_position_mfst = pd.DataFrame()
+        self.df_sale_mfst = pd.DataFrame()
