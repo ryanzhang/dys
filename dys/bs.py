@@ -17,7 +17,7 @@ and then choose `flask` as template.
 import os
 import warnings
 warnings.simplefilter(action="ignore", category=FutureWarning)
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from typing import Any, Iterable, List
 import numpy as np
 
@@ -421,6 +421,7 @@ class BaseStrategy:
         cur_net = 1
 
         while start_date <= self.end_date:
+            starttime = datetime.now()
             end_date = self.stockutil.get_trade_date_by_offset(
                 start_date, int(-1 * tm.xperiod)
             )
@@ -792,6 +793,8 @@ class BaseStrategy:
                 )
             period = period + 1
             start_date = end_date
+            endtime = datetime.now()
+            logger.debug(f'计算一天花费时间{(endtime-starttime).seconds} 秒')
 
         # 计算历史最大回撤
         max_net = self.df_position_mfst["net"].cummax()
