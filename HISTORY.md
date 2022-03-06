@@ -4,6 +4,14 @@ Changelog
 
 (unreleased)
 ------------
+- Remove df_choice_equd. [Ryan Zhang]
+- 优化代码. [Ryan Zhang]
+- 引入groupby对象 解决定位当日股票速度问题. [Ryan Zhang]
+- 实时选股，而不是提前选股. [Ryan Zhang]
+- 优化一点再equd 定位outlier股票的速度, loc大的df非常慢. [Ryan Zhang]
+- 增加调试时间戳. [Ryan Zhang]
+- Pump version up 0.1.8.dev. [Ryan Zhang]
+- Release: version 0.1.8 🚀 [Ryan Zhang]
 - Remove tempdir logic. [Ryan Zhang]
 - Fix two bugs when df_candidate is empty and get_roi_by_date. [Ryan
   Zhang]
