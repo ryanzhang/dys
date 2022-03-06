@@ -4,6 +4,11 @@ Changelog
 
 (unreleased)
 ------------
+- Remove tempdir logic. [Ryan Zhang]
+- Fix two bugs when df_candidate is empty and get_roi_by_date. [Ryan
+  Zhang]
+- Pump version up 0.1.7.dev. [Ryan Zhang]
+- Release: version 0.1.7 🚀 [Ryan Zhang]
 - Add ma10_price_ampl_rate metric. [Ryan Zhang]
 - 增加set_metric_folder function, 还原计算指标值的时候清空停牌股票. [Ryan Zhang]
 - 把回测日期锁定到截止2021/12/31 因为2022/1/14日后数据还有问题，improve一些测试代码. [Ryan Zhang]
