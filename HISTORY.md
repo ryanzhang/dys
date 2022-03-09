@@ -4,6 +4,9 @@ Changelog
 
 (unreleased)
 ------------
+- 修复了一些bug，增加了N日内出现停牌股的指标. [Ryan Zhang]
+- Pump version up 0.2.2.dev. [Ryan Zhang]
+- Release: version 0.2.2 🚀 [Ryan Zhang]
 - 考虑没有持仓情况 的边缘情况. [Ryan Zhang]
 - 尝试增加21日反转以及收益波动指标. [Ryan Zhang]
 - Pump version up 0.2.1.dev. [Ryan Zhang]
