@@ -4,6 +4,9 @@ Changelog
 
 (unreleased)
 ------------
+- Rename suspend to not_suspend_in metric. [Ryan Zhang]
+- Pump version up 0.2.3.dev. [Ryan Zhang]
+- Release: version 0.2.3 🚀 [Ryan Zhang]
 - 修复了一些bug，增加了N日内出现停牌股的指标. [Ryan Zhang]
 - Pump version up 0.2.2.dev. [Ryan Zhang]
 - Release: version 0.2.2 🚀 [Ryan Zhang]
