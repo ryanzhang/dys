@@ -21,7 +21,7 @@ class m(object):
         object (_type_): _description_
     """
 
-    def suspend_in(df: pd.DataFrame, name, args) -> pd.DataFrame:
+    def not_suspend_in(df: pd.DataFrame, name, args) -> pd.DataFrame:
         """N日内是否有停牌 1为有，0为无
 
         Args:
@@ -44,8 +44,8 @@ class m(object):
             return y
 
         x = x.groupby("ticker").apply(calc_open_price_prod)
-        x[f"suspend_in_{N}"] = 0
-        x.loc[x[f"open_price_prod"] == 0, f"suspend_in_{N}"] = 1
+        x[f"not_suspend_in_{N}"] = 1
+        x.loc[x[f"open_price_prod"] == 0, f"not_suspend_in_{N}"] = 0
         df_metric = pd.DataFrame(index=df.index)
         df_metric["id"] = df["id"]
         df_metric = df_metric.join(x.iloc[:, -1])

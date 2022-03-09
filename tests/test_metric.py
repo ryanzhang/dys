@@ -45,7 +45,7 @@ class TestMetrics:
         # df = df.join(df_metric)
 
         N = 5
-        sm = SelectMetric(f"suspend_in_{N}", m.suspend_in, N, dfs[1])
+        sm = SelectMetric(f"not_suspend_in_{N}", m.not_suspend_in, N, dfs[1])
         df_metric = sm.apply(df, sm.name, sm.args)
         assert sm.name in df_metric.columns
         df = df.join(df_metric)
