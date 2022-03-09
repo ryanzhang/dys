@@ -16,18 +16,19 @@ xfail = pytest.mark.xfail
 
 class TestMetrics:
     @pytest.fixture()
-    def df(self):
+    def dfs(self):
         db = DBAdaptor(is_use_cache=True)
         df = db.get_df_by_sql(
-            "select * from stock.mkt_equ_day where trade_date >= '20200709' and trade_date<='20211231' and open_price>0 order by id"
+            "select * from stock.mkt_equ_day where trade_date >= '20200709' and trade_date<='20211231' order by id"
         )
+        df_no_sus = df.loc[df.open_price>0,:]
         # 把量能有关的 停牌日设置为空，预期失真不如排出
-        df.loc[df.open_price==0, 'turnover_vol']= np.nan
-        df.loc[df.open_price==0, 'turnover_rate']= np.nan
-        df.loc[df.open_price==0, 'turnover_value']= np.nan
-        df.loc[df.open_price==0, 'deal_amount']= np.nan
-        assert df is not None
-        return df
+        # df.loc[df.open_price==0, 'turnover_vol']= np.nan
+        # df.loc[df.open_price==0, 'turnover_rate']= np.nan
+        # df.loc[df.open_price==0, 'turnover_value']= np.nan
+        # df.loc[df.open_price==0, 'deal_amount']= np.nan
+        # assert df is not None
+        return (df_no_sus,df)
 
     @pytest.fixture(autouse=True)
     def setup_teamdown(self):
@@ -36,7 +37,27 @@ class TestMetrics:
         yield
         logger.info("TestCase Level Tear Down is triggered!")
 
-    def test_price_aml(self, df):
+    def test_roi_volat(self, dfs):
+        df = dfs[0]
+        # df_with_sus=dfs[1]
+        # sm = SelectMetric("chg_pct_60", m.n_chg_pct, 60, df_with_sus)
+        # df_metric = sm.apply(df, sm.name, sm.args)
+        # df = df.join(df_metric)
+
+        N=60
+        sm = SelectMetric(f"roi_volat_{N}", m.roi_volat, N)
+        df_metric = sm.apply(df, sm.name, sm.args)
+        assert sm.name in df_metric.columns
+        df = df.join(df_metric)
+        df_sample_null_metric = df.loc[
+            (df["ticker"] == "838030") & (df_metric[sm.name].isna()), :
+        ]
+        assert df_sample_null_metric.shape[0] == N-1 
+        # assert df[sm.name].notna().all()
+        logger.debug(df_metric)
+
+    def test_price_aml(self, dfs):
+        df = dfs[0]
         sm = SelectMetric("price_ampl", m.price_ampl)
         df_metric = sm.apply(df, sm.name, sm.args)
         assert sm.name in df_metric.columns
@@ -49,7 +70,8 @@ class TestMetrics:
         logger.debug(df_metric)
 
         
-    def test_ma_price_aml_rate(self, df):
+    def test_ma_price_aml_rate(self, dfs):
+        df = dfs[0]
         sm1 = SelectMetric("price_ampl", m.price_ampl)
         df_metric = sm1.apply(df, sm1.name, sm1.args)
         assert sm1.name in df_metric.columns
@@ -68,8 +90,10 @@ class TestMetrics:
         logger.debug(df_metric)
         pass
 
-    def test_N_chg_pct(self, df):
-        sm = SelectMetric("20_chg_pct", m.n_chg_pct, 20)
+    def test_N_chg_pct(self, dfs):
+        df=dfs[0]
+        df_with_sus=dfs[1]
+        sm = SelectMetric("20_chg_pct", m.n_chg_pct, 20, df_with_sus)
         df_metric = sm.apply(df, sm.name, sm.args)
         assert sm.name in df_metric.columns
         df = df.join(df_metric)
@@ -79,6 +103,21 @@ class TestMetrics:
         assert df_sample_null_metric.shape[0] == 20
         logger.debug(df_metric)
         pass
+
+    def test_revers_21(self, dfs):
+        df=dfs[0]
+        df_with_sus=dfs[1]
+        sm = SelectMetric("revers_21", m.revers_21)
+        df_metric = sm.apply(df, sm.name, sm.args)
+        assert sm.name in df_metric.columns
+        df = df.join(df_metric)
+        df_sample_null_metric = df.loc[
+            (df["ticker"] == "000002") & (df_metric[sm.name].isna()), :
+        ]
+        assert df_sample_null_metric.shape[0] == 20
+        logger.debug(df_metric)
+        pass
+
 
 
     def test_momentum(self, df: pd.DataFrame):
@@ -157,21 +196,23 @@ class TestMetrics:
         # plt.plot(df_000001["close_price"], label='close_price')
         # plt.show()
 
-    def test_float_rate_n(self, df: pd.DataFrame):
-        db = DBAdaptor(is_use_cache=True)
+    def test_float_rate_n(self, dfs: pd.DataFrame):
+        df = dfs[0]
+        df_with_sus = dfs[1]
+        # db = DBAdaptor(is_use_cache=True)
         N = 60
         # df_float = db.get_df_by_sql("select * from stock.equ_share_float")
-        sm = SelectMetric(f"float_rate_{N}", m.float_rate, N)
+        sm = SelectMetric(f"float_rate_{N}", m.float_rate, N, df_with_sus)
         df_metric = sm.apply(df, sm.name, sm.args)
 
         # df.to_csv("/tmp/test_float_rate_all.csv")
 
         df = df.join(df_metric)
-        df_603059 = df[df.ticker == "603059"]
+        df_603059 = df.loc[df.ticker == "603059",:]
 
         assert df[sm.name].notna().all()
         assert (
-            df_603059.loc[df_603059.trade_date == "20210105", sm.name].iloc[0]
+            df_603059.loc[df_603059.trade_date == pd.to_datetime("20210105"), sm.name].iloc[0]
             > 0
         )
 

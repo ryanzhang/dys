@@ -18,6 +18,27 @@ class m(object):
         object (_type_): _description_
     """
 
+    def roi_volat(df: pd.DataFrame, name, args) -> pd.DataFrame:
+        """N日收益波动率volatility
+
+        Args:
+            df (pd.DataFrame): _description_
+            name (_type_): _description_
+            args (_type_): _description_
+
+        Returns:
+            pd.DataFrame: _description_
+        """        
+        N=args[0]
+        def volat(x):
+            x['chg_pct_volat'] = x['chg_pct'].rolling(N).std()
+            return x
+
+        df_metric = pd.DataFrame(index=df.index)
+        dx = df.groupby('ticker').apply(volat)
+        df_metric[name]=dx['chg_pct_volat']
+        return df_metric
+
     def price_ampl(df: pd.DataFrame, name, args) -> pd.DataFrame:
         """当日股价振幅
 
@@ -318,6 +339,7 @@ class m(object):
             return df
 
         df = m.__calc_float_num(df, N)
+
         df_metric[name] = df[fnN] * 10000 * df["close_price"]
         return df_metric
 
@@ -335,24 +357,27 @@ class m(object):
         Returns:
             pd.DataFrame: _description_
         """
-        if len(args) != 1:
-            raise Exception("解禁金额指标需要一个参数:1. 天数")
+        if len(args) != 2:
+            raise Exception("解禁金额指标需要两个参数:1. 天数,2,含停牌日的市场总行情数据")
 
         df_metric = pd.DataFrame(index=df.index)
         N = args[0]
+        x = args[1]
 
         frN = f"float_rate_{N}"
         fvN = f"float_value_{N}"
-        fnN = f"SUM{N}_float_num"
+        # fnN = f"SUM{N}_float_num"
 
         if fvN in df.columns:
             df[frN] = df[fvN] / df["neg_market_value"]
             return df
 
-        df = m.__calc_float_num(df, N)
+        x = m.__calc_float_num(x, N)
+        df = df.join(x.iloc[:,-1])
         df_metric[name] = (
-            df[fnN] * 10000 * df["close_price"] / df["neg_market_value"]
+            (10000*df['neg_shares_incr'] * df["close_price"] / df["neg_market_value"]).astype('int32')/10000
         )
+        df_metric.loc[df_metric[name]<0,name] = 0
         return df_metric
 
     def vol_nm_rate(df: pd.DataFrame, name, args) -> pd.DataFrame:
@@ -403,6 +428,38 @@ class m(object):
         df_metric.replace([np.inf, -np.inf], np.nan, inplace=True)
         return df_metric
 
+    def revers_21(df: pd.DataFrame, name, args) -> pd.DataFrame:
+        """21日反转因子 
+        21日反转 :
+        描述：
+        公式：Product(收盘价/1030价格,21)
+        详细说明： https://guorn.com/forum/post/p.783378.227880987472847
+        Args:
+            df (pd.DataFrame): _description_
+            args (_type_): _description_
+
+        Returns:
+            pd.DataFrame: _description_
+        """
+        db = DBAdaptor(is_use_cache=True)
+        df_k1 = db.get_df_by_sql("select ticker,trade_date,close from stock.mkt_equ_60k1 where trade_date >= '20200709' and trade_date<='20211231' and open>0 order by id")
+        df["merge_key"] = df[["ticker", "trade_date"]].apply(tuple, axis=1)
+        df_k1["merge_key"]=df_k1[["ticker","trade_date"]].apply(tuple,axis=1)
+        df_k1 = df_k1[['merge_key','close']]
+        df = pd.merge(df, df_k1, on='merge_key', how='left')
+
+        df['rate']=df['close_price']/df['close']
+        df['rate'].fillna(1, inplace=True)
+        def do_prod(df):
+            df['revers_21'] = df['rate'].rolling(21).apply(lambda x:x.prod())
+            return df
+
+        df =df.groupby('ticker').apply(do_prod)
+        df_metric = pd.DataFrame(index=df.index)
+
+        df_metric[name] = df.iloc[:, -1]
+        return df_metric
+
     def n_chg_pct(df: pd.DataFrame, name, args) -> pd.DataFrame:
         """N日内涨跌幅总和
         注意这里和累积多日的涨跌幅是不同的；
@@ -416,9 +473,15 @@ class m(object):
         """
 
         N = args[0]
-        df = df.groupby("ticker").apply(m.__caculate_offset_chg_pct, N )
+        x = args[1]
+        x = x.groupby("ticker").apply(m.__caculate_offset_chg_pct, N, name )
+        # df = df.groupby("ticker").apply(m.__caculate_offset_chg_pct, N )
         df_metric = pd.DataFrame(index=df.index)
-        df_metric[name] = df.iloc[:, -1]
+        df_metric['id'] = df['id']
+
+        df_metric = df_metric.join(x.iloc[:,-1])
+        df_metric.drop("id",axis=1,inplace=True)
+        # df_metric[name] = df.iloc[:, -1]
         return df_metric
 
     def ma_turnover_rate(df: pd.DataFrame, name, args) -> pd.DataFrame:
@@ -500,11 +563,11 @@ class m(object):
         x["neg_cov"] = -1 * x["highrank"].rolling(N).cov(x["volrank"])
         return x
 
-    def __caculate_offset_chg_pct(x:pd.DataFrame, N:int):
+    def __caculate_offset_chg_pct(x:pd.DataFrame, N:int, name):
         """计算N日内涨跌幅
         """        
-        x[f'{N}_close_price'] = x['close_price'].shift(20)
-        x[f'{N}_chg_pct'] = (x['close_price'] - x[f'{N}_close_price'])/x[f'{N}_close_price']
+        x[f'{N}_close_price'] = x['close_price'].shift(N)
+        x[name] = (x['close_price'] - x[f'{N}_close_price'])/x[f'{N}_close_price']
         x.drop(f'{N}_close_price', axis=1, inplace=True)
         return x
 
@@ -553,30 +616,35 @@ class m(object):
         return x
 
     def __calc_float_num(df: pd.DataFrame, N: int) -> pd.DataFrame:
-        db = DBAdaptor()
-        df_float = db.get_df_by_sql("select * from stock.equ_share_float")
-        fnN = f"SUM{N}_float_num"
-        df_float = df_float[["sec_id", "float_date", "float_num"]]
-        df_float["sec_id"] = df_float["sec_id"].astype("string")
-        df_float["float_date"] = pd.to_datetime(df_float["float_date"])
-        df_float.set_index(["sec_id", "float_date"], inplace=True)
-        # df = pd.merge(df, df_float, on=["ticker", "trade_date"], how="left")
-        # df["sec_id"] = df["sec_id"].astype("string")
-        df["trade_date"] = pd.to_datetime(df["trade_date"])
-        df["float_num"] = df[["sec_id", "trade_date"]].apply(tuple, axis=1)
-        float_num_dict = df_float.to_dict().get("float_num")
-        df["float_num"] = df["float_num"].map(float_num_dict)
-        df["float_num"] = df["float_num"].fillna(0)
-        # df.to_csv("/tmp/metric_float_rate_origin.csv")
-        df = (
-            df.sort_values("trade_date", ascending=False)
-            .groupby("ticker")
-            .apply(m.__SUM, N, "float_num", 1)
-        )
+        # db = DBAdaptor(is_use_cache=True)
+        # df_float = db.get_df_by_sql("select * from stock.equ_share_float")
+        # fnN = f"SUM{N}_float_num"
+        # df_float = df_float[["ticker", "float_date", "new_marketable_shares"]]
+        # df_float["ticker"] = df_float["ticker"].astype("string")
+        # df_float["float_date"] = pd.to_datetime(df_float["float_date"])
+        # df_float.set_index(["ticker", "float_date"], inplace=True)
+        # # df = pd.merge(df, df_float, on=["ticker", "trade_date"], how="left")
+        # # df["ticker"] = df["ticker"].astype("string")
+        # df["trade_date"] = pd.to_datetime(df["trade_date"])
+        # df["float_num"] = df[["ticker", "trade_date"]].apply(tuple, axis=1)
+        # float_num_dict = df_float.to_dict().get("new_marketable_shares")
+        # df["float_num"] = df["float_num"].map(float_num_dict)
+        # df["float_num"] = df["float_num"].fillna(0)
+        # # df.to_csv("/tmp/metric_float_rate_origin.csv")
+        df['neg_shares_1']= (df['neg_market_value']/df['close_price']).shift(1)
+        df[f'neg_shares_-{N}']=df['neg_shares_1'].shift(-1*N)
+        df['neg_shares_incr'] = df[f'neg_shares_-{N}'] - df[f'neg_shares_1']
+
+        # df = (
+        #     df.sort_values("trade_date", ascending=False)
+        #     .groupby("ticker")
+        #     .apply(m.__SUM, N, "float_num", 1)
+        # )
         # df.to_csv("/tmp/metric_float_rate_descending.csv")
         # recover the sort order to origin
-        df = df.sort_index()
-        df[fnN] = df[fnN].fillna(0)
+        # df = df.sort_index()
+        # TODO 这里要考虑90天的未来数据margin
+        df['neg_shares_incr'] = df['neg_shares_incr'].fillna(0)
         # df.to_csv("/tmp/metric_float_rate_ascending.csv")
         return df
 

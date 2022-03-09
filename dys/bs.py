@@ -54,6 +54,7 @@ class BaseStrategy:
         # 成员
         self.df_equ_pool = None
         self.df_equd_pool = None
+        self.df_equd_pool_with_sus = None
         self.equd_groupby_date = None
 
         self.select_conditions = None
@@ -126,6 +127,8 @@ class BaseStrategy:
             # df.loc[df.open_price==0, 'turnover_rate']= np.nan
             # df.loc[df.open_price==0, 'turnover_value']= np.nan
             # df.loc[df.open_price==0, 'deal_amount']= np.nan
+            # 计算价格想逛因子需要考虑停牌日在内，比如涨幅，乖离率
+            self.df_equd_pool_with_sus = df
             #停牌日行情，排出在外
             df = df.loc[df.open_price>0,:]
             self.df_equd_pool = df
