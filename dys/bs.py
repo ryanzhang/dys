@@ -810,12 +810,15 @@ class BaseStrategy:
             logger.debug(f'计算一日回测花费时间{(endtime-starttime).total_seconds()*1000} 毫秒')
 
         # 计算历史最大回撤
-        max_net = self.df_position_mfst["net"].cummax()
-        self.df_position_mfst["drawback_pct"] = (
-            self.df_position_mfst["net"] / max_net - 1
-        )
-        # self.df_position_mfst['rolling_on_year_max_net'] = self.df_position_mfst['net'].rolling(243, min_periods=1).max
-        # self.df_position_mfst['drawback_pct'] = self.df_position_mfst['net']/max_net -1
+        if self.df_position_mfst is None :
+            logger.warning("{self.start_date}-{self.end_date},没有持仓的股票")
+        else:
+            max_net = self.df_position_mfst["net"].cummax()
+            self.df_position_mfst["drawback_pct"] = (
+                self.df_position_mfst["net"] / max_net - 1
+            )
+            # self.df_position_mfst['rolling_on_year_max_net'] = self.df_position_mfst['net'].rolling(243, min_periods=1).max
+            # self.df_position_mfst['drawback_pct'] = self.df_position_mfst['net']/max_net -1
 
         endtime_0 = datetime.now()
         logger.debug(f'计算历史回测花费时间{(endtime_0-starttime_0).total_seconds()*1000} 毫秒')
@@ -864,7 +867,11 @@ class BaseStrategy:
         Returns:
             float: _description_
         """        
-        max_drawback = self.df_position_mfst["drawback_pct"].min() * 100
+        if self.df_position_mfst is None:
+            logger.warning("没有发现持仓股票")
+            max_drawback=0
+        else:
+            max_drawback = self.df_position_mfst["drawback_pct"].min() * 100
         return max_drawback
 
     def get_history_max_roi(self) -> float:
