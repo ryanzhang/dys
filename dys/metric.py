@@ -1,9 +1,12 @@
 import traceback
 import warnings
+
 import numpy as np
-warnings.simplefilter(action='ignore', category=FutureWarning)
+
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 import pandas as pd
+
 pd.options.mode.chained_assignment = None  # default='warn'
 from kupy import *
 
@@ -18,6 +21,37 @@ class m(object):
         object (_type_): _description_
     """
 
+    def suspend_in(df: pd.DataFrame, name, args) -> pd.DataFrame:
+        """N日内是否有停牌 1为有，0为无
+
+        Args:
+            df (pd.DataFrame): _description_
+            name (_type_): _description_
+            args (_type_): _description_
+
+        Returns:
+            pd.DataFrame: _description_
+        """
+        N = args[0]
+        x = args[1]
+
+        def calc_open_price_prod(y):
+            y["open_price_prod"] = (
+                y["open_price"]
+                .rolling(N, min_periods=1)
+                .apply(lambda z: z.prod())
+            )
+            return y
+
+        x = x.groupby("ticker").apply(calc_open_price_prod)
+        x[f"suspend_in_{N}"] = 0
+        x.loc[x[f"open_price_prod"] == 0, f"suspend_in_{N}"] = 1
+        df_metric = pd.DataFrame(index=df.index)
+        df_metric["id"] = df["id"]
+        df_metric = df_metric.join(x.iloc[:, -1])
+        df_metric.drop("id", axis=1, inplace=True)
+        return df_metric
+
     def roi_volat(df: pd.DataFrame, name, args) -> pd.DataFrame:
         """N日收益波动率volatility
 
@@ -28,15 +62,16 @@ class m(object):
 
         Returns:
             pd.DataFrame: _description_
-        """        
-        N=args[0]
+        """
+        N = args[0]
+
         def volat(x):
-            x['chg_pct_volat'] = x['chg_pct'].rolling(N).std()
+            x["chg_pct_volat"] = x["chg_pct"].rolling(N).std()
             return x
 
         df_metric = pd.DataFrame(index=df.index)
-        dx = df.groupby('ticker').apply(volat)
-        df_metric[name]=dx['chg_pct_volat']
+        dx = df.groupby("ticker").apply(volat)
+        df_metric[name] = dx["chg_pct_volat"]
         return df_metric
 
     def price_ampl(df: pd.DataFrame, name, args) -> pd.DataFrame:
@@ -49,9 +84,11 @@ class m(object):
 
         Returns:
             pd.DataFrame: _description_
-        """        
+        """
         df_metric = pd.DataFrame(index=df.index)
-        df_metric[name] = (df["highest_price"] - df["lowest_price"])/df['pre_close_price']
+        df_metric[name] = (df["highest_price"] - df["lowest_price"]) / df[
+            "pre_close_price"
+        ]
         return df_metric
 
     def price_ampl_rate(df: pd.DataFrame, name, args) -> pd.DataFrame:
@@ -64,10 +101,10 @@ class m(object):
 
         Returns:
             pd.DataFrame: _description_
-        """        
+        """
         df_metric = pd.DataFrame(index=df.index)
-        #因为这个比率太小，所以放大10000倍，最终要的是从大到小的排行
-        df_metric[name] = df["price_ampl"]*10000/df['turnover_value']
+        # 因为这个比率太小，所以放大10000倍，最终要的是从大到小的排行
+        df_metric[name] = df["price_ampl"] * 10000 / df["turnover_value"]
         return df_metric
 
     def ma_any(df: pd.DataFrame, name, args) -> pd.DataFrame:
@@ -80,7 +117,7 @@ class m(object):
 
         Returns:
             pd.DataFrame: _description_
-        """        
+        """
         N = args[0]
         metric_name = args[1]
 
@@ -105,7 +142,7 @@ class m(object):
 
         Returns:
             pd.DataFrame: _description_
-        """        
+        """
         N = args[0]
         metric_name = args[1]
 
@@ -119,6 +156,7 @@ class m(object):
         df_metric[name] = df.iloc[:, -1]
 
         return df_metric
+
     def neg_market_amount(df: pd.DataFrame, name, args) -> pd.DataFrame:
         """流通股数
 
@@ -129,7 +167,7 @@ class m(object):
 
         Returns:
             pd.DataFrame: _description_
-        """        
+        """
         df_metric = pd.DataFrame(index=df.index)
         df_metric[name] = (df["neg_market_value"] / df["close_price"]).astype(
             int
@@ -373,11 +411,14 @@ class m(object):
             return df
 
         x = m.__calc_float_num(x, N)
-        df = df.join(x.iloc[:,-1])
+        df = df.join(x.iloc[:, -1])
         df_metric[name] = (
-            (10000*df['neg_shares_incr'] * df["close_price"] / df["neg_market_value"]).astype('int32')/10000
-        )
-        df_metric.loc[df_metric[name]<0,name] = 0
+            10000
+            * df["neg_shares_incr"]
+            * df["close_price"]
+            / df["neg_market_value"]
+        ).astype("int32") / 10000
+        df_metric.loc[df_metric[name] < 0, name] = 0
         return df_metric
 
     def vol_nm_rate(df: pd.DataFrame, name, args) -> pd.DataFrame:
@@ -429,7 +470,7 @@ class m(object):
         return df_metric
 
     def revers_21(df: pd.DataFrame, name, args) -> pd.DataFrame:
-        """21日反转因子 
+        """21日反转因子
         21日反转 :
         描述：
         公式：Product(收盘价/1030价格,21)
@@ -442,19 +483,24 @@ class m(object):
             pd.DataFrame: _description_
         """
         db = DBAdaptor(is_use_cache=True)
-        df_k1 = db.get_df_by_sql("select ticker,trade_date,close from stock.mkt_equ_60k1 where trade_date >= '20200709' and trade_date<='20211231' and open>0 order by id")
+        df_k1 = db.get_df_by_sql(
+            "select ticker,trade_date,close from stock.mkt_equ_60k1 where trade_date >= '20200709' and trade_date<='20211231' and open>0 order by id"
+        )
         df["merge_key"] = df[["ticker", "trade_date"]].apply(tuple, axis=1)
-        df_k1["merge_key"]=df_k1[["ticker","trade_date"]].apply(tuple,axis=1)
-        df_k1 = df_k1[['merge_key','close']]
-        df = pd.merge(df, df_k1, on='merge_key', how='left')
+        df_k1["merge_key"] = df_k1[["ticker", "trade_date"]].apply(
+            tuple, axis=1
+        )
+        df_k1 = df_k1[["merge_key", "close"]]
+        df = pd.merge(df, df_k1, on="merge_key", how="left")
 
-        df['rate']=df['close_price']/df['close']
-        df['rate'].fillna(1, inplace=True)
+        df["rate"] = df["close_price"] / df["close"]
+        df["rate"].fillna(1, inplace=True)
+
         def do_prod(df):
-            df['revers_21'] = df['rate'].rolling(21).apply(lambda x:x.prod())
+            df["revers_21"] = df["rate"].rolling(21).apply(lambda x: x.prod())
             return df
 
-        df =df.groupby('ticker').apply(do_prod)
+        df = df.groupby("ticker").apply(do_prod)
         df_metric = pd.DataFrame(index=df.index)
 
         df_metric[name] = df.iloc[:, -1]
@@ -474,13 +520,13 @@ class m(object):
 
         N = args[0]
         x = args[1]
-        x = x.groupby("ticker").apply(m.__caculate_offset_chg_pct, N, name )
+        x = x.groupby("ticker").apply(m.__caculate_offset_chg_pct, N, name)
         # df = df.groupby("ticker").apply(m.__caculate_offset_chg_pct, N )
         df_metric = pd.DataFrame(index=df.index)
-        df_metric['id'] = df['id']
+        df_metric["id"] = df["id"]
 
-        df_metric = df_metric.join(x.iloc[:,-1])
-        df_metric.drop("id",axis=1,inplace=True)
+        df_metric = df_metric.join(x.iloc[:, -1])
+        df_metric.drop("id", axis=1, inplace=True)
         # df_metric[name] = df.iloc[:, -1]
         return df_metric
 
@@ -563,12 +609,13 @@ class m(object):
         x["neg_cov"] = -1 * x["highrank"].rolling(N).cov(x["volrank"])
         return x
 
-    def __caculate_offset_chg_pct(x:pd.DataFrame, N:int, name):
-        """计算N日内涨跌幅
-        """        
-        x[f'{N}_close_price'] = x['close_price'].shift(N)
-        x[name] = (x['close_price'] - x[f'{N}_close_price'])/x[f'{N}_close_price']
-        x.drop(f'{N}_close_price', axis=1, inplace=True)
+    def __caculate_offset_chg_pct(x: pd.DataFrame, N: int, name):
+        """计算N日内涨跌幅"""
+        x[f"{N}_close_price"] = x["close_price"].shift(N)
+        x[name] = (x["close_price"] - x[f"{N}_close_price"]) / x[
+            f"{N}_close_price"
+        ]
+        x.drop(f"{N}_close_price", axis=1, inplace=True)
         return x
 
     def __neutralize(x: pd.DataFrame, col_name: str):
@@ -631,9 +678,11 @@ class m(object):
         # df["float_num"] = df["float_num"].map(float_num_dict)
         # df["float_num"] = df["float_num"].fillna(0)
         # # df.to_csv("/tmp/metric_float_rate_origin.csv")
-        df['neg_shares_1']= (df['neg_market_value']/df['close_price']).shift(1)
-        df[f'neg_shares_-{N}']=df['neg_shares_1'].shift(-1*N)
-        df['neg_shares_incr'] = df[f'neg_shares_-{N}'] - df[f'neg_shares_1']
+        df["neg_shares_1"] = (
+            df["neg_market_value"] / df["close_price"]
+        ).shift(1)
+        df[f"neg_shares_-{N}"] = df["neg_shares_1"].shift(-1 * N)
+        df["neg_shares_incr"] = df[f"neg_shares_-{N}"] - df[f"neg_shares_1"]
 
         # df = (
         #     df.sort_values("trade_date", ascending=False)
@@ -644,7 +693,7 @@ class m(object):
         # recover the sort order to origin
         # df = df.sort_index()
         # TODO 这里要考虑90天的未来数据margin
-        df['neg_shares_incr'] = df['neg_shares_incr'].fillna(0)
+        df["neg_shares_incr"] = df["neg_shares_incr"].fillna(0)
         # df.to_csv("/tmp/metric_float_rate_ascending.csv")
         return df
 

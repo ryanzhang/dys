@@ -31,7 +31,7 @@ class MyStrategy(BaseStrategy):
 
     #     Args:
     #         path (_type_): _description_
-    #     """        
+    #     """
     #     self.config.data_folder = path
     #     self._BaseStrategy__mk_folder()
 
@@ -79,7 +79,7 @@ class MyStrategy(BaseStrategy):
 
         Returns:
         """
-        #set_equ_pool should be explicit calling
+        # set_equ_pool should be explicit calling
         # self.set_equ_pool()
         # Optional only for debug
         # 1个亿= 100000000
@@ -213,7 +213,9 @@ class TestBaseStrategy:
         assert df2["trade_date"].iloc[0] == date(2021, 7, 6)
         assert df2["trade_date"].iloc[-1] == date(2021, 8, 6)
 
-    def test_select_equd_by_daterange_with_customize_equ_pool(self, ms: MyStrategy):
+    def test_select_equd_by_daterange_with_customize_equ_pool(
+        self, ms: MyStrategy
+    ):
         # set_equ_pool custimze the equ poo to only XSHG
         ms.set_equ_pool()
         df1: pd.DataFrame = ms.select_equd_by_daterange(date(2021, 7, 9))
@@ -390,7 +392,7 @@ class TestBaseStrategy:
     def test_generate_position_mfst(self, ms: MyStrategy):
         start_date = date(2021, 1, 4)
         end_date = date(2021, 12, 31)
-        # 设置自选股, 这个是设定股票池的，不在股票池的股票，全历史都会排出掉，回测中不再会出现 
+        # 设置自选股, 这个是设定股票池的，不在股票池的股票，全历史都会排出掉，回测中不再会出现
         ms.set_equ_pool()
         ms.set_select_condition()
         ms.select_equd_by_daterange(start_date=start_date, end_date=end_date)
@@ -410,8 +412,12 @@ class TestBaseStrategy:
         logger.info(f"最大收益:{max_roi}")
         logger.info(f"最大回撤:{max_drawback}")
         # ms.T.drop_duplicates().T
-        ms.df_position_mfst.to_parquet(f"{os.getcwd()}/target/position_mfst_2010.parquet")
-        ms.df_sale_mfst.to_parquet(f"{os.getcwd()}/target/sale_mfst_2010.parquet")
+        ms.df_position_mfst.to_parquet(
+            f"{os.getcwd()}/target/position_mfst_2010.parquet"
+        )
+        ms.df_sale_mfst.to_parquet(
+            f"{os.getcwd()}/target/sale_mfst_2010.parquet"
+        )
 
     @skip
     def test_get_trade_mfst_by_date(self, ms: MyStrategy):

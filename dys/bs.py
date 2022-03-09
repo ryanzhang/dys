@@ -16,12 +16,14 @@ and then choose `flask` as template.
 
 import os
 import warnings
-warnings.simplefilter(action="ignore", category=FutureWarning)
-from datetime import date, timedelta, datetime
-from typing import Any, Iterable, List
-import numpy as np
 
+warnings.simplefilter(action="ignore", category=FutureWarning)
+from datetime import date, datetime, timedelta
+from typing import Any, Iterable, List
+
+import numpy as np
 import pandas as pd
+
 pd.options.mode.chained_assignment = None  # default='warn'
 from kupy.config import configs
 from kupy.dbadaptor import DBAdaptor
@@ -29,7 +31,6 @@ from kupy.logger import logger
 
 from dys.domain import RankFactor, SelectMetric, StrategyConfig, TradeModel
 from dys.stockutil import StockUtil
-
 
 # By default 120 tradeable days between 2009-07-09 to 2020-12-31
 # New k data can be append since 2022-01-04
@@ -90,9 +91,9 @@ class BaseStrategy:
 
         Args:
             path (_type_): _description_
-        """        
+        """
         self.config.data_folder = path
-        self.__mk_folder()  
+        self.__mk_folder()
 
     def __mk_folder(self):
         # os.makedirs(f"{self.config.data_folder}/cache/", exist_ok=True)
@@ -104,7 +105,7 @@ class BaseStrategy:
         Raises:
             Exception: _description_
             Exception: _description_
-        """        
+        """
         db = DBAdaptor(is_use_cache=True)
         if self.trade_type == 0:
             self.df_equ_pool = db.get_df_by_sql("select * from stock.equity")
@@ -129,8 +130,8 @@ class BaseStrategy:
             # df.loc[df.open_price==0, 'deal_amount']= np.nan
             # 计算价格想逛因子需要考虑停牌日在内，比如涨幅，乖离率
             self.df_equd_pool_with_sus = df
-            #停牌日行情，排出在外
-            df = df.loc[df.open_price>0,:]
+            # 停牌日行情，排出在外
+            df = df.loc[df.open_price > 0, :]
             self.df_equd_pool = df
             logger.debug(f"股票池已经设定所有上市股票")
         elif self.trade_type == 1:
@@ -147,7 +148,7 @@ class BaseStrategy:
 
         Returns:
             _type_: _description_
-        """        
+        """
         df = self.df_equd_pool
         oc = df.shape[0]
         df = df[df["ticker"].isin(self.df_equ_pool["ticker"])]
@@ -161,15 +162,17 @@ class BaseStrategy:
 
         Args:
             condition (_type_): _description_
-        """        
+        """
         # if self.debug_sample_date is not None:
         #     oc = self.df_equd_pool[
         #         self.df_equd_pool.trade_date == pd.to_datetime(self.debug_sample_date)
         #     ].shape[0]
 
         # self.df_equd_pool = self.df_equd_pool.query(condition)
-        if self.select_conditions :
-            self.select_conditions = self.select_conditions + " and " + condition 
+        if self.select_conditions:
+            self.select_conditions = (
+                self.select_conditions + " and " + condition
+            )
         else:
             self.select_conditions = condition
 
@@ -190,16 +193,15 @@ class BaseStrategy:
         Args:
             sm (SelectMetric): _description_
             reset_cache (bool, optional): _description_. Defaults to False.
-        """        
-        self.df_equd_pool[sm.name] = self.__add_metric_column(
-            sm, reset_cache
-        )
+        """
+        self.df_equd_pool[sm.name] = self.__add_metric_column(sm, reset_cache)
         self.df_metrics.append(sm.name)
 
         # Debug information
         if self.debug_sample_date is not None:
             df = self.df_equd_pool.loc[
-                self.df_equd_pool.trade_date == pd.to_datetime(self.debug_sample_date),
+                self.df_equd_pool.trade_date
+                == pd.to_datetime(self.debug_sample_date),
                 ["sec_short_name", sm.name],
             ]
             logger.debug(f"指标{sm.name}已加载, {self.debug_sample_date} 指标值: {df}")
@@ -238,11 +240,11 @@ class BaseStrategy:
 
         Raises:
             Exception: _description_
-        """        
+        """
         cols = self.df_equd_pool.columns
 
         if rf.name not in cols:
-            raise Exception(f"排序指标没有在df_equd_pool列中找到:{cols}")
+            raise Exception(f"排序指标{rf.name}没有在df_equd_pool列中找到:{cols}")
 
         if self.rank_factors is None:
             self.rank_factors = list()
@@ -256,7 +258,7 @@ class BaseStrategy:
 
     def rank(self) -> pd.DataFrame:
         """对每日选股中的自选股列表进行排序
-        注意它包含历史所有日期到的数据 ，需要使用groupby 
+        注意它包含历史所有日期到的数据 ，需要使用groupby
 
         Raises:
             Exception: _description_
@@ -303,7 +305,9 @@ class BaseStrategy:
 
         if self.debug_sample_date is not None:
             df = self.df_equd_pool.loc[
-                self.df_equd_pool.trade_date == pd.to_datetime(self.debug_sample_date), :
+                self.df_equd_pool.trade_date
+                == pd.to_datetime(self.debug_sample_date),
+                :,
             ]
             logger.debug(f"排序已完成, {self.debug_sample_date}  指标值: {df}")
         logger.debug(f"选好的股票已经排序")
@@ -354,7 +358,9 @@ class BaseStrategy:
         df.sort_values(["xrank"], ascending=False, inplace=True)
 
         endtime = datetime.now()
-        logger.debug(f"选好的股票已重新排序完成, 花费时间:{(endtime-starttime).total_seconds()*1000}毫秒")
+        logger.debug(
+            f"选好的股票已重新排序完成, 花费时间:{(endtime-starttime).total_seconds()*1000}毫秒"
+        )
         return df
 
     def select_equd_by_daterange(
@@ -370,7 +376,8 @@ class BaseStrategy:
         else:
             self.end_date = end_date
             df = df[
-                (df.trade_date >= pd.to_datetime(start_date)) & (df.trade_date <= pd.to_datetime(end_date))
+                (df.trade_date >= pd.to_datetime(start_date))
+                & (df.trade_date <= pd.to_datetime(end_date))
             ]
         self.df_equd_pool = df
 
@@ -467,7 +474,7 @@ class BaseStrategy:
                 #         :,
                 #     ]
                 #     endtime_1 = datetime.now()
-                #     logger.debug(f'查询outlier股票 {(endtime_1-starttime_1).total_seconds()*1000} 毫秒')                    
+                #     logger.debug(f'查询outlier股票 {(endtime_1-starttime_1).total_seconds()*1000} 毫秒')
                 #     if not_in_choice_equd.shape[0] > 0:
                 #         logger.debug(
                 #             f"出现不在自选股K线池, 但是已经持仓的股票里面{not_in_choice_equd.trade_date} {not_in_choice_equd.sec_short_name}"
@@ -479,7 +486,6 @@ class BaseStrategy:
                 #         )
                 #         # 对当日重新排名
                 #         cur_choice_equd = self.rank_df(cur_choice_equd)
-
 
                 update_pre_equd = cur_choice_equd.loc[
                     cur_choice_equd.ticker.isin(pre.ticker),
@@ -661,9 +667,11 @@ class BaseStrategy:
             #     # 补仓
 
             # cur_choice_equd = self.get_choice_equ_by_date(start_date)
-            if cur_choice_equd is None or cur_choice_equd.shape[0]==0 :
+            if cur_choice_equd is None or cur_choice_equd.shape[0] == 0:
                 cur_choice_equd = self.get_daily_choice_equd(start_date)
-            logger.debug(f"周期:{period} {start_date}选股{cur_choice_equd.shape[0]}")
+            logger.debug(
+                f"周期:{period} {start_date}选股{cur_choice_equd.shape[0]}"
+            )
             # 此处使用.loc[:, "sale_days"]会有bug，如果cur_choice_equd 为空就会出错
             cur_choice_equd["sale_days"] = 100000
             # 增加卖出时间列
@@ -681,7 +689,8 @@ class BaseStrategy:
                     cur_choice_equd, saled_ticker, on="ticker", how="left"
                 )
                 cur_choice_equd["sale_days"] = (
-                    cur_choice_equd["trade_date"] - cur_choice_equd["sale_date"]
+                    cur_choice_equd["trade_date"]
+                    - cur_choice_equd["sale_date"]
                 ).dt.days
                 cur_choice_equd.drop(["sale_date"], axis=1, inplace=True)
 
@@ -807,10 +816,12 @@ class BaseStrategy:
             period = period + 1
             start_date = end_date
             endtime = datetime.now()
-            logger.debug(f'计算一日回测花费时间{(endtime-starttime).total_seconds()*1000} 毫秒')
+            logger.debug(
+                f"计算一日回测花费时间{(endtime-starttime).total_seconds()*1000} 毫秒"
+            )
 
         # 计算历史最大回撤
-        if self.df_position_mfst is None :
+        if self.df_position_mfst.shape[0] == 0:
             logger.warning("{self.start_date}-{self.end_date},没有持仓的股票")
         else:
             max_net = self.df_position_mfst["net"].cummax()
@@ -821,7 +832,9 @@ class BaseStrategy:
             # self.df_position_mfst['drawback_pct'] = self.df_position_mfst['net']/max_net -1
 
         endtime_0 = datetime.now()
-        logger.debug(f'计算历史回测花费时间{(endtime_0-starttime_0).total_seconds()*1000} 毫秒')
+        logger.debug(
+            f"计算历史回测花费时间{(endtime_0-starttime_0).total_seconds()*1000} 毫秒"
+        )
         return self.df_position_mfst
 
     def get_fmt_position_mfst(
@@ -835,7 +848,7 @@ class BaseStrategy:
 
         Returns:
             _type_: _description_
-        """        
+        """
         df = self.df_position_mfst
         # 增加一列
         df["period_start_close_price"] = df["close_price"]
@@ -866,10 +879,10 @@ class BaseStrategy:
 
         Returns:
             float: _description_
-        """        
+        """
         if self.df_position_mfst is None:
             logger.warning("没有发现持仓股票")
-            max_drawback=0
+            max_drawback = 0
         else:
             max_drawback = self.df_position_mfst["drawback_pct"].min() * 100
         return max_drawback
@@ -879,7 +892,7 @@ class BaseStrategy:
 
         Returns:
             float: _description_
-        """        
+        """
         ret = self.df_position_mfst["net"].max()
         return ret
 
@@ -892,7 +905,7 @@ class BaseStrategy:
 
         Returns:
             float: _description_
-        """        
+        """
         ret = self.df_position_mfst["net"].iloc[-1]
         return ret
 
@@ -901,7 +914,7 @@ class BaseStrategy:
 
         Returns:
             float: _description_
-        """        
+        """
         start_date = self.start_date
         end_date = self.end_date
         final_roi = self.get_roi_by_date()
@@ -948,11 +961,13 @@ class BaseStrategy:
 
         Returns:
             pd.DataFrame: _description_
-        """        
+        """
         df = self.df_equd_pool
         return df.loc[df.trade_date == pd.to_datetime(trade_date), :]
 
-    def get_daily_choice_equd(self, trade_date: date, pos:pd.DataFrame=None) -> pd.DataFrame:
+    def get_daily_choice_equd(
+        self, trade_date: date, pos: pd.DataFrame = None
+    ) -> pd.DataFrame:
         """获取某日的选股, 并且要包含每日持仓股
 
         Args:
@@ -960,23 +975,25 @@ class BaseStrategy:
 
         Returns:
             pd.DataFrame: _description_
-        """        
+        """
         starttime = datetime.now()
         if self.equd_groupby_date is None:
-            self.equd_groupby_date = self.df_equd_pool.groupby('trade_date')
+            self.equd_groupby_date = self.df_equd_pool.groupby("trade_date")
         df = self.equd_groupby_date.get_group(trade_date)
         # 筛选
         df = df.query(self.select_conditions)
         if pos is not None:
-            outlier = pos.loc[~pos.ticker.isin(df.ticker),:]
+            outlier = pos.loc[~pos.ticker.isin(df.ticker), :]
             if outlier.shape[0] > 0:
                 logger.debug(f"已把跳出自选股的持仓中的股票加入到自选股中 {outlier}")
-                df = pd.concat([df, outlier[df.columns[2:len(df.columns)]]])
+                df = pd.concat([df, outlier[df.columns[2 : len(df.columns)]]])
 
         # 排序
         df = self.rank_df(df)
         endtime = datetime.now()
-        logger.debug(f"每日实时选股+ 排序完成, 花费时间:{(endtime-starttime).total_seconds()*1000}毫秒")
+        logger.debug(
+            f"每日实时选股+ 排序完成, 花费时间:{(endtime-starttime).total_seconds()*1000}毫秒"
+        )
         return df
 
     def get_rebalance_operation(
@@ -1044,7 +1061,7 @@ class BaseStrategy:
 
         Returns:
             pd.DataFrame: _description_
-        """    
+        """
         df = self.df_equd_pool
         df.trade_date = pd.to_datetime(df.trade_date)
         # choice.ticker=choice.ticker.astype('string')

@@ -21,14 +21,14 @@ class TestMetrics:
         df = db.get_df_by_sql(
             "select * from stock.mkt_equ_day where trade_date >= '20200709' and trade_date<='20211231' order by id"
         )
-        df_no_sus = df.loc[df.open_price>0,:]
+        df_no_sus = df.loc[df.open_price > 0, :]
         # 把量能有关的 停牌日设置为空，预期失真不如排出
         # df.loc[df.open_price==0, 'turnover_vol']= np.nan
         # df.loc[df.open_price==0, 'turnover_rate']= np.nan
         # df.loc[df.open_price==0, 'turnover_value']= np.nan
         # df.loc[df.open_price==0, 'deal_amount']= np.nan
         # assert df is not None
-        return (df_no_sus,df)
+        return (df_no_sus, df)
 
     @pytest.fixture(autouse=True)
     def setup_teamdown(self):
@@ -37,6 +37,24 @@ class TestMetrics:
         yield
         logger.info("TestCase Level Tear Down is triggered!")
 
+    def test_suspend_in(self, dfs):
+        df = dfs[0]
+        # df_with_sus=dfs[1]
+        # sm = SelectMetric("chg_pct_60", m.n_chg_pct, 60, df_with_sus)
+        # df_metric = sm.apply(df, sm.name, sm.args)
+        # df = df.join(df_metric)
+
+        N = 5
+        sm = SelectMetric(f"suspend_in_{N}", m.suspend_in, N, dfs[1])
+        df_metric = sm.apply(df, sm.name, sm.args)
+        assert sm.name in df_metric.columns
+        df = df.join(df_metric)
+        df_sample_null_metric = df.loc[df[sm.name] == 0, :]
+
+        # assert df[sm.name].notna().all()
+        logger.debug(df_metric)
+        logger.debug(df_sample_null_metric)
+
     def test_roi_volat(self, dfs):
         df = dfs[0]
         # df_with_sus=dfs[1]
@@ -44,7 +62,7 @@ class TestMetrics:
         # df_metric = sm.apply(df, sm.name, sm.args)
         # df = df.join(df_metric)
 
-        N=60
+        N = 60
         sm = SelectMetric(f"roi_volat_{N}", m.roi_volat, N)
         df_metric = sm.apply(df, sm.name, sm.args)
         assert sm.name in df_metric.columns
@@ -52,7 +70,7 @@ class TestMetrics:
         df_sample_null_metric = df.loc[
             (df["ticker"] == "838030") & (df_metric[sm.name].isna()), :
         ]
-        assert df_sample_null_metric.shape[0] == N-1 
+        assert df_sample_null_metric.shape[0] == N - 1
         # assert df[sm.name].notna().all()
         logger.debug(df_metric)
 
@@ -69,7 +87,6 @@ class TestMetrics:
         assert df[sm.name].notna().all()
         logger.debug(df_metric)
 
-        
     def test_ma_price_aml_rate(self, dfs):
         df = dfs[0]
         sm1 = SelectMetric("price_ampl", m.price_ampl)
@@ -82,7 +99,9 @@ class TestMetrics:
         assert sm2.name in df_metric.columns
         df = df.join(df_metric)
 
-        sm3 = SelectMetric("ma10_price_ampl_rate", m.ma_any, 10, 'price_ampl_rate' )
+        sm3 = SelectMetric(
+            "ma10_price_ampl_rate", m.ma_any, 10, "price_ampl_rate"
+        )
         df_metric = sm3.apply(df, sm3.name, sm3.args)
         assert sm3.name in df_metric.columns
         df = df.join(df_metric)
@@ -91,8 +110,8 @@ class TestMetrics:
         pass
 
     def test_N_chg_pct(self, dfs):
-        df=dfs[0]
-        df_with_sus=dfs[1]
+        df = dfs[0]
+        df_with_sus = dfs[1]
         sm = SelectMetric("20_chg_pct", m.n_chg_pct, 20, df_with_sus)
         df_metric = sm.apply(df, sm.name, sm.args)
         assert sm.name in df_metric.columns
@@ -105,8 +124,8 @@ class TestMetrics:
         pass
 
     def test_revers_21(self, dfs):
-        df=dfs[0]
-        df_with_sus=dfs[1]
+        df = dfs[0]
+        df_with_sus = dfs[1]
         sm = SelectMetric("revers_21", m.revers_21)
         df_metric = sm.apply(df, sm.name, sm.args)
         assert sm.name in df_metric.columns
@@ -117,8 +136,6 @@ class TestMetrics:
         assert df_sample_null_metric.shape[0] == 20
         logger.debug(df_metric)
         pass
-
-
 
     def test_momentum(self, df: pd.DataFrame):
         sm = SelectMetric("MOM20_close_price", m.momentum, 20, "close_price")
@@ -208,11 +225,13 @@ class TestMetrics:
         # df.to_csv("/tmp/test_float_rate_all.csv")
 
         df = df.join(df_metric)
-        df_603059 = df.loc[df.ticker == "603059",:]
+        df_603059 = df.loc[df.ticker == "603059", :]
 
         assert df[sm.name].notna().all()
         assert (
-            df_603059.loc[df_603059.trade_date == pd.to_datetime("20210105"), sm.name].iloc[0]
+            df_603059.loc[
+                df_603059.trade_date == pd.to_datetime("20210105"), sm.name
+            ].iloc[0]
             > 0
         )
 
@@ -253,8 +272,10 @@ class TestMetrics:
         df = df.join(df_metric)
         assert sm.name in df.columns
         df_sample = df[df["ticker"] == "000586"]
-        logger.debug(f'{df_sample.iloc[0].trade_date}{df_sample.iloc[0].sec_short_name} {df_sample}')
-        df_sample[df_sample[sm.name].isna()].shape[0] == N-1
+        logger.debug(
+            f"{df_sample.iloc[0].trade_date}{df_sample.iloc[0].sec_short_name} {df_sample}"
+        )
+        df_sample[df_sample[sm.name].isna()].shape[0] == N - 1
 
     def test_ma_turnover_rate(self, df: pd.DataFrame):
         N = 5
