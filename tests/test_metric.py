@@ -37,6 +37,24 @@ class TestMetrics:
         yield
         logger.info("TestCase Level Tear Down is triggered!")
 
+    def test_neg_share_incr(self, dfs):
+        df = dfs[0]
+        # df_with_sus=dfs[1]
+        # sm = SelectMetric("chg_pct_60", m.n_chg_pct, 60, df_with_sus)
+        # df_metric = sm.apply(df, sm.name, sm.args)
+        # df = df.join(df_metric)
+
+        N = 60
+        sm = SelectMetric(f"neg_share_incr_{N}", m.neg_share_incr, N, dfs[1])
+        df_metric = sm.apply(df, sm.name, sm.args)
+        assert sm.name in df_metric.columns
+        df = df.join(df_metric)
+        df_sample_null_metric = df.loc[df[sm.name] == 0, :]
+
+        # assert df[sm.name].notna().all()
+        logger.debug(df_metric)
+        logger.debug(df_sample_null_metric)
+
     def test_suspend_in(self, dfs):
         df = dfs[0]
         # df_with_sus=dfs[1]

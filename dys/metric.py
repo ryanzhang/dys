@@ -347,13 +347,12 @@ class m(object):
         return df_metric
 
     def float_value(df: pd.DataFrame, name, args) -> pd.DataFrame:
-        """N日内解禁市值，单位元
+        """N日内新增流通市值，单位万元
 
         Args:
             df (pd.DataFrame): _description_
             args (_type_): _description_
             1: N 日内, N日为N个交易日, 非自然日
-            2: 解禁df
 
         Raises:
             Exception: _description_
@@ -361,12 +360,13 @@ class m(object):
         Returns:
             pd.DataFrame: _description_
         """
-        if len(args) != 1:
-            raise Exception("解禁比例指标需要两个参数:1. 解禁前多少日受影响")
+        if len(args) != 2:
+            raise Exception("解禁比例指标需要两个参数:1. 解禁前多少日受影响, 2 含停牌日df")
 
         df_metric = pd.DataFrame(index=df.index)
 
         N = args[0]
+        x = args[1]
 
         frN = f"float_rate_{N}"
         fvN = f"float_value_{N}"
@@ -376,13 +376,43 @@ class m(object):
             df[fvN] = df[frN] * df["neg_market_value"]
             return df
 
-        df = m.__calc_float_num(df, N)
+        x = m.__calc_float_num(x, N)
+        df = df.join(x.iloc[:, -1])
 
-        df_metric[name] = df[fnN] * 10000 * df["close_price"]
+        df_metric[name] = df[fnN] * df["close_price"]/10000
+        return df_metric
+
+    def neg_share_incr(df: pd.DataFrame, name, args) -> pd.DataFrame:
+        """N日内新增流通股数,以万股为单位
+
+        Args:
+            df (pd.DataFrame): _description_
+            args (_type_): _description_
+            1: N 日内, N日为N个交易日, 非自然日
+
+        Raises:
+            Exception: _description_
+
+        Returns:
+            pd.DataFrame: _description_
+        """
+        if len(args) != 2:
+            raise Exception("解禁比例指标需要两个参数:1. 解禁前多少日受影响， 2.含停牌日df")
+
+        df_metric = pd.DataFrame(index=df.index)
+
+        N = args[0]
+        x = args[1]
+
+
+        x = m.__calc_float_num(x, N)
+        df = df.join(x.iloc[:, -1])
+
+        df_metric[name] = df["neg_shares_incr"] 
         return df_metric
 
     def float_rate(df: pd.DataFrame, name, args) -> pd.DataFrame:
-        """N日内解禁市值占流通市值的比例, 参数2个， 指标值为浮点小数
+        """N日内解禁市值占流通市值的比例, 参数2个， 指标值为浮点小数, 单位 万分之一
 
         Args:
             df (pd.DataFrame): _description_
@@ -413,8 +443,8 @@ class m(object):
         x = m.__calc_float_num(x, N)
         df = df.join(x.iloc[:, -1])
         df_metric[name] = (
-            10000
-            * df["neg_shares_incr"]
+            df["neg_shares_incr"]
+            * 10000
             * df["close_price"]
             / df["neg_market_value"]
         ).astype("int32") / 10000

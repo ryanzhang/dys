@@ -880,7 +880,7 @@ class BaseStrategy:
         Returns:
             float: _description_
         """
-        if self.df_position_mfst is None:
+        if self.df_position_mfst.shape[0]==0:
             logger.warning("没有发现持仓股票")
             max_drawback = 0
         else:
