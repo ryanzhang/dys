@@ -9,6 +9,7 @@ __pycache__/
 **/Pipfile
 **/*.DS_Store
 **/*.zip
+starget
 
 # C extensions
 *.so

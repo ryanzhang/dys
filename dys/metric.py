@@ -21,6 +21,73 @@ class m(object):
         object (_type_): _description_
     """
 
+    def ps_pit(df: pd.DataFrame, name, args) -> pd.DataFrame:
+        """增加每股收益，每股公积金，每股现金流指标，具体指标名称参考配置文档, 以及DBSchema字段解释
+        @TODO
+        有问题
+
+        Args:
+            df (pd.DataFrame): _description_
+            name (_type_): _description_
+            args (_type_): _description_
+
+        Returns:
+            pd.DataFrame: _description_
+            basic_eps 基本每股收益
+            diluted_eps 稀释每股收益
+            reser_ps 每股公积金
+            c_reser_ps 每股资本公积金
+            n_cin_cash_ps 每股现金流流量净额
+            fcf_fps 每股企业活动现金流
+        """
+        # N = args[0]
+
+        # def calc_open_price_prod(y):
+        #     y["open_price_prod"] = (
+        #         y["open_price"]
+        #         .rolling(N, min_periods=1)
+        #         .apply(lambda z: z.prod())
+        #     )
+        #     return y
+        db = DBAdaptor(is_use_cache=True)
+        df_ps = db.get_df_by_sql("select * from stock.fdmt_indi_ps_pit")
+        df_ps = df_ps[
+            [
+                "ticker",
+                "end_date",
+                "act_pubtime",
+                "basic_eps",
+                "diluted_eps",
+                "reser_ps",
+                "c_reser_ps",
+                "n_cin_cash_ps",
+                "fcf_fps",
+            ]
+        ]
+
+        df_ps.dropna(inplace=True)
+        df_ps["trade_date"] = pd.to_datetime(df_ps["act_pubtime"]).dt.date
+        df_ps.sort_values(
+            ["ticker", "end_date", "trade_date"], ascending=True, inplace=True
+        )
+        df_ps.drop_duplicates(
+            subset=["ticker", "end_date"], keep="first", inplace=True
+        )
+        df_ps.drop("end_date", axis=1, inplace=True)
+        df_ps.drop("act_pubtime", axis=1, inplace=True)
+
+        df_metric = pd.DataFrame(index=df.index)
+        df_metric["ticker"] = df["ticker"]
+        df_metric["trade_date"] = df["trade_date"]
+
+        df_metric = pd.merge(
+            df_metric, df_ps, on=["ticker", "trade_date"], how="left"
+        )
+        # df_metric[']
+
+        df_metric.drop(["ticker", "trade_date"], axis=1, inplace=True)
+        return df_metric
+
     def not_suspend_in(df: pd.DataFrame, name, args) -> pd.DataFrame:
         """N日内是否有停牌 1为有，0为无
 
@@ -235,6 +302,8 @@ class m(object):
             logger.warning(
                 f"发现找不到上市天数的股票{variant['ticker']} 有问题的数据保存到:{variant_export_file}"
             )
+        
+        
 
         df_metric[name] = (df["trade_date"] - df["list_date"]).dt.days + 1
         return df_metric
@@ -370,7 +439,7 @@ class m(object):
 
         frN = f"float_rate_{N}"
         fvN = f"float_value_{N}"
-        fnN = f"SUM{N}_float_num"
+        fnN = "neg_shares_incr"
 
         if frN in df.columns:
             df[fvN] = df[frN] * df["neg_market_value"]
@@ -379,7 +448,7 @@ class m(object):
         x = m.__calc_float_num(x, N)
         df = df.join(x.iloc[:, -1])
 
-        df_metric[name] = df[fnN] * df["close_price"]/10000
+        df_metric[name] = df[fnN] * df["close_price"] / 10000
         return df_metric
 
     def neg_share_incr(df: pd.DataFrame, name, args) -> pd.DataFrame:
@@ -404,11 +473,10 @@ class m(object):
         N = args[0]
         x = args[1]
 
-
         x = m.__calc_float_num(x, N)
         df = df.join(x.iloc[:, -1])
 
-        df_metric[name] = df["neg_shares_incr"] 
+        df_metric[name] = df["neg_shares_incr"]
         return df_metric
 
     def float_rate(df: pd.DataFrame, name, args) -> pd.DataFrame:

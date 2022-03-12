@@ -37,6 +37,24 @@ class TestMetrics:
         yield
         logger.info("TestCase Level Tear Down is triggered!")
 
+    def test_ps_pit(self, dfs):
+        df = dfs[0]
+        # df_with_sus=dfs[1]
+        # sm = SelectMetric("chg_pct_60", m.n_chg_pct, 60, df_with_sus)
+        # df_metric = sm.apply(df, sm.name, sm.args)
+        # df = df.join(df_metric)
+
+        # ps_pit是每股收益指标统称 具体指标列名需参考文档
+        sm = SelectMetric(f"ps_pit", m.ps_pit)
+        df_metric = sm.apply(df, sm.name, sm.args)
+        assert sm.name in df_metric.columns
+        df = df.join(df_metric)
+        df_sample_null_metric = df.loc[df[sm.name] == 0, :]
+
+        # assert df[sm.name].notna().all()
+        logger.debug(df_metric)
+        logger.debug(df_sample_null_metric)
+
     def test_neg_share_incr(self, dfs):
         df = dfs[0]
         # df_with_sus=dfs[1]

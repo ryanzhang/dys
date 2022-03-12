@@ -67,8 +67,118 @@ class BaseStrategy:
 
         self.mkt_timing_algo = None
         # 历史持仓
+        # columns_pos_mfst = [
+        #     "period",
+        #     "sec_short_name",
+        #     "ticker",
+        #     "start_date",
+        #     "end_date",
+        #     "period_pre_start_close_price",
+        #     "period_start_close_price",
+        #     "period_pre_chg_pct",
+        #     "period_start_pos_pct",
+        #     "hold_days",
+        #     "unit_net_change",
+        #     "net",
+        #     "initial_date",
+        #     "initial_price",
+        #     "exchange_cd",
+        #     "trade_date",
+        #     "pre_close_price",
+        #     "act_pre_close_price",
+        #     "open_price",
+        #     "highest_price",
+        #     "lowest_price",
+        #     "close_price",
+        #     "turnover_vol",
+        #     "turnover_value",
+        #     "deal_amount",
+        #     "turnover_rate",
+        #     "accum_adj_bf_factor",
+        #     "neg_market_value",
+        #     "market_value",
+        #     "chg_pct",
+        #     "pe",
+        #     "pe1",
+        #     "pb",
+        #     "is_open",
+        #     "vwap",
+        #     "accum_adj_af_factor",
+        #     "price_ampl",
+        #     "price_ampl_rate",
+        #     "ma10_price_ampl_rate",
+        #     "ma5_vol_rate",
+        #     "list_days",
+        #     "wq_alpha16",
+        #     "ntra_turnover_rate_5",
+        #     "float_rate_60",
+        #     "ntra_bias_6",
+        #     "ntra_bias_20",
+        #     "bias_6",
+        #     "chg_pct_21",
+        #     "rank",
+        #     "neg_market_value_subrank",
+        #     "wq_alpha16_subrank",
+        #     "ntra_turnover_rate_5_subrank",
+        #     "float_rate_60_subrank",
+        #     "ntra_bias_6_subrank",
+        #     "chg_pct_21_subrank",
+        #     "ma10_price_ampl_rate_subrank",
+        #     "xrank",
+        #     "sale_days",
+        # ]
+        # self.df_position_mfst = pd.DataFrame(columns=columns_pos_mfst)
         self.df_position_mfst = pd.DataFrame()
         # 历史卖出清单
+        # columns_sale_mfst = [
+        #     "ticker",
+        #     "sec_short_name",
+        #     "buy_date",
+        #     "sale_date",
+        #     "buy_price",
+        #     "sale_price",
+        #     "chg_pct",
+        #     "hold_days",
+        #     "unit_net",
+        #     "increase_net",
+        #     "relative_roi",
+        #     "turnover_vol",
+        #     "turnover_value",
+        #     "deal_amount",
+        #     "turnover_rate",
+        #     "accum_adj_bf_factor",
+        #     "neg_market_value",
+        #     "market_value",
+        #     "pe",
+        #     "pe1",
+        #     "pb",
+        #     "is_open",
+        #     "vwap",
+        #     "accum_adj_af_factor",
+        #     "price_ampl",
+        #     "price_ampl_rate",
+        #     "ma10_price_ampl_rate",
+        #     "ma5_vol_rate",
+        #     "list_days",
+        #     "wq_alpha16",
+        #     "ntra_turnover_rate_5",
+        #     "float_rate_60",
+        #     "ntra_bias_6",
+        #     "ntra_bias_20",
+        #     "bias_6",
+        #     "chg_pct_21",
+        #     "rank",
+        #     "neg_market_value_subrank",
+        #     "wq_alpha16_subrank",
+        #     "ntra_turnover_rate_5_subrank",
+        #     "float_rate_60_subrank",
+        #     "ntra_bias_6_subrank",
+        #     "chg_pct_21_subrank",
+        #     "ma10_price_ampl_rate_subrank",
+        #     "xrank",
+        #     "unit_net_change",
+        # ]
+        # self.df_sale_mfst = pd.DataFrame(columns=columns_sale_mfst)
         self.df_sale_mfst = pd.DataFrame()
 
         # # 过滤出来的股票池
@@ -443,6 +553,9 @@ class BaseStrategy:
                 start_date, int(-1 * tm.xperiod)
             )
 
+            cur_choice_equd = self.get_daily_choice_equd(start_date, pre)
+            if cur_choice_equd.shape[0]==0:
+                logger.warning(f"period:{period} {start_date} 选股为空，没有选到股票!")
             # 先判断卖出
             if pre.shape[0] > 0:
                 pre["period"] = period
@@ -456,7 +569,6 @@ class BaseStrategy:
                 # cur_choice_equd = self.df_equd_pool.loc[
                 #     self.df_equd_pool.trade_date == pd.to_datetime(start_date), :
                 # ]
-                cur_choice_equd = self.get_daily_choice_equd(start_date, pre)
                 # not_in_choice_equd = pre.loc[
                 #     (~pre.ticker.isin(cur_choice_equd.ticker)), :
                 # ]
@@ -547,10 +659,11 @@ class BaseStrategy:
                 # Check Sale condition
                 sale = pre.query(tm.sale_criterial)
 
-                notsale = sale.query(tm.notsale_criterial)
+                if tm.notsale_criterial is not None:
+                    notsale = sale.query(tm.notsale_criterial)
 
-                if notsale is not None and notsale.shape[0] > 0:
-                    sale = sale[~sale.ticker.isin(notsale.ticker)]
+                    if notsale is not None and notsale.shape[0] > 0:
+                        sale = sale[~sale.ticker.isin(notsale.ticker)]
 
                 # 空出仓位值
                 sum_sale_trans_fee = (
@@ -667,11 +780,11 @@ class BaseStrategy:
             #     # 补仓
 
             # cur_choice_equd = self.get_choice_equ_by_date(start_date)
-            if cur_choice_equd is None or cur_choice_equd.shape[0] == 0:
-                cur_choice_equd = self.get_daily_choice_equd(start_date)
-            logger.debug(
-                f"周期:{period} {start_date}选股{cur_choice_equd.shape[0]}"
-            )
+            # if cur_choice_equd is None or cur_choice_equd.shape[0] == 0:
+            #     cur_choice_equd = self.get_daily_choice_equd(start_date)
+            # logger.debug(
+            #     f"周期:{period} {start_date}选股{cur_choice_equd.shape[0]}"
+            # )
             # 此处使用.loc[:, "sale_days"]会有bug，如果cur_choice_equd 为空就会出错
             cur_choice_equd["sale_days"] = 100000
             # 增加卖出时间列
@@ -880,7 +993,7 @@ class BaseStrategy:
         Returns:
             float: _description_
         """
-        if self.df_position_mfst.shape[0]==0:
+        if self.df_position_mfst.shape[0] == 0:
             logger.warning("没有发现持仓股票")
             max_drawback = 0
         else:
@@ -1064,10 +1177,17 @@ class BaseStrategy:
         """
         df = self.df_equd_pool
         df.trade_date = pd.to_datetime(df.trade_date)
+        pool_count=pd.DataFrame()
+        pool_count['select_equ_count']=df.groupby('trade_date').size()
+        # pool_count['trade_date']=pool_count.index
+
         # choice.ticker=choice.ticker.astype('string')
         choice.trade_date = pd.to_datetime(choice.trade_date)
         choice = pd.DataFrame.merge(
             choice, df, on=["ticker", "trade_date"], how="left"
+        )
+        choice=pd.DataFrame.merge(
+            choice, pool_count, on=["trade_date"], how="left"
         )
         return choice
 
