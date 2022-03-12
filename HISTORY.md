@@ -4,6 +4,9 @@ Changelog
 
 (unreleased)
 ------------
+- Add byly revert. [Ryan Zhang]
+- Pump version up 0.2.5.dev. [Ryan Zhang]
+- Release: version 0.2.5 🚀 [Ryan Zhang]
 - 增加流通股数指标，修复一个选股位为时计算回撤的bug. [Ryan Zhang]
 - Pump version up 0.2.4.dev. [Ryan Zhang]
 - Release: version 0.2.4 🚀 [Ryan Zhang]
