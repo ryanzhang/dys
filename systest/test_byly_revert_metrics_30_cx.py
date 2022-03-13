@@ -169,8 +169,8 @@ class BylyStrategy(BaseStrategy):
             reset_cache=False,
         )        
         self.append_metric(
-            SelectMetric("ma5_turnover_value_rank", m.rank, "ma5_turnover_value", False),
-            reset_cache=False,
+            SelectMetric("ma5_turnover_value_rank", m.rank, "ma5_turnover_value", True),
+            reset_cache=True,
         )        
 
 

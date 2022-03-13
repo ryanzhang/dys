@@ -141,6 +141,9 @@ dist: release
 	# python setup.py sdist bdist_wheel
 	twine upload -r pypi dist/*
 
+upload:
+	scp -r starget/*.csv root@192.168.2.15:/var/www/html/data/byly/
+
 # This project has been generated from ryanzhang/python-project-template which is forked from 
 # rochacbruno/python-project-template
 # __author__ = 'rochacbruno'

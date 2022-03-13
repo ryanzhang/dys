@@ -170,8 +170,8 @@ class BylyStrategy(BaseStrategy):
             reset_cache=False,
         )        
         self.append_metric(
-            SelectMetric("ma5_turnover_value_rank", m.rank, "ma5_turnover_value", False),
-            reset_cache=False,
+            SelectMetric("ma5_turnover_value_rank", m.rank, "ma5_turnover_value", True),
+            reset_cache=True,
         )        
     def set_select_condition(self):
         """设置选股条件字符串，条件字符串按照df.query接受的语法
