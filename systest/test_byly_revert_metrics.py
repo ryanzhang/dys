@@ -235,6 +235,7 @@ class TestBylyStrategy:
                 choice_equ = pd.read_csv(f, dtype={"ticker": object})
                 choice_equ["trade_date"] = choice_equ["买入日期"]
                 choice_equ.sort_values(['ticker', 'trade_date'], inplace=True)
+                choice_equ.drop_duplicates(subset=['ticker', 'trade_date'], keep='first', inplace=True)
                 assert choice_equ is not None
                 # assert choice_equ.shape[0] == 10
                 # assert choice_equ.shape[1] == 10

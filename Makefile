@@ -141,8 +141,10 @@ dist: release
 	# python setup.py sdist bdist_wheel
 	twine upload -r pypi dist/*
 
+COMPILE_TIME = $(shell date +"%Y%m%d%H%M")
 upload:
-	scp -r starget/*.csv root@192.168.2.15:/var/www/html/data/byly/
+	ssh root@192.168.2.15 mkdir /var/www/html/data/byly/$(COMPILE_TIME)
+	scp -r starget/*.csv root@192.168.2.15:/var/www/html/data/byly/$(COMPILE_TIME)/
 
 # This project has been generated from ryanzhang/python-project-template which is forked from 
 # rochacbruno/python-project-template

@@ -1189,6 +1189,16 @@ class BaseStrategy:
         choice=pd.DataFrame.merge(
             choice, pool_count, on=["trade_date"], how="left"
         )
+        db = DBAdaptor(is_use_cache=True)
+        df_ps= db.get_df_by_sql("select * from stock.fdmt_indi_ps_pit")
+        df_ps = df_ps.loc[df_ps.groupby('ticker').act_pubtime.idxmax()]
+        select_ps_columns=['ticker','publish_date','end_date','act_pubtime','basic_eps','diluted_eps','eps','reser_ps','c_reser_ps','n_cin_cash_ps','fcf_fps']
+        df_ps=df_ps[select_ps_columns]
+        choice = pd.DataFrame.merge(
+            choice,df_ps, on=['ticker'], how="left"
+        )
+        logger.debug(df_ps)
+
         return choice
 
     def reset_backtest_result(self):

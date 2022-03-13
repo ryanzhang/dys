@@ -232,12 +232,13 @@ class TestBylyStrategy:
                 choice_equ = pd.read_csv(f, dtype={"ticker": object})
                 choice_equ["trade_date"] = choice_equ["买入日期"]
                 choice_equ.sort_values(['ticker', 'trade_date'], inplace=True)
-                choice_equ.drop_duplicates(keep='first', inplace=True)
+                choice_equ.drop_duplicates(subset=['ticker', 'trade_date'], keep='first', inplace=True)
                 assert choice_equ is not None
                 # assert choice_equ.shape[0] == 10
                 # assert choice_equ.shape[1] == 10
                 try:
                     df = byly.get_choice_equ_metrics_by_list(choice_equ)
+                    # 增加基本市值列
                 except Exception as e:
                     logger.debug(f"{f}")
                     raise Exception(e);
