@@ -175,7 +175,7 @@ class m(object):
         return df_metric
 
     def ma_any(df: pd.DataFrame, name, args) -> pd.DataFrame:
-        """当日股价振幅
+        """对任何指标进行均值
 
         Args:
             df (pd.DataFrame): _description_
@@ -411,8 +411,8 @@ class m(object):
         df_metric = pd.DataFrame(index=df.index)
 
         N = args[0]
-        df = df.groupby("ticker").apply(m.__MA, N, "close_price")
-        df_metric[name] = df["close_price"] / df[f"MA{N}_close_price"] - 1
+        df = df.groupby("ticker").apply(m.__MA, N, "hfq_close_price")
+        df_metric[name] = df["hfq_close_price"] / df[f"MA{N}_hfq_close_price"] - 1
         return df_metric
 
     def float_value(df: pd.DataFrame, name, args) -> pd.DataFrame:
@@ -607,6 +607,8 @@ class m(object):
     def n_chg_pct(df: pd.DataFrame, name, args) -> pd.DataFrame:
         """N日内涨跌幅总和
         注意这里和累积多日的涨跌幅是不同的；
+        @TODO
+        这里是否需要考虑复权 pre_close_price使用的是前复权
 
         Args:
             df (pd.DataFrame): _description_
@@ -709,11 +711,11 @@ class m(object):
 
     def __caculate_offset_chg_pct(x: pd.DataFrame, N: int, name):
         """计算N日内涨跌幅"""
-        x[f"{N}_close_price"] = x["close_price"].shift(N)
-        x[name] = (x["close_price"] - x[f"{N}_close_price"]) / x[
-            f"{N}_close_price"
+        x[f"{N}_hfq_close_price"] = x["hfq_close_price"].shift(N)
+        x[name] = (x["hfq_close_price"] - x[f"{N}_hfq_close_price"]) / x[
+            f"{N}_hfq_close_price"
         ]
-        x.drop(f"{N}_close_price", axis=1, inplace=True)
+        x.drop(f"{N}_hfq_close_price", axis=1, inplace=True)
         return x
 
     def __neutralize(x: pd.DataFrame, col_name: str):

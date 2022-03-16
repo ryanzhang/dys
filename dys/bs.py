@@ -233,6 +233,18 @@ class BaseStrategy:
             df = db.get_df_by_sql(
                 f"select * from stock.mkt_equ_day where trade_date >='{self.dataset_start}' and trade_date <= '{self.dataset_end}' order by id"
             )
+            # 计算复权因子
+            def caculate_qf_factor(x):
+                x['fq_factor'] = (1+x['chg_pct']).cumprod(axis=0)
+                firstday_close_price_factor = x['close_price'].iloc[0]/x['fq_factor'].iloc[0]
+                firstday_open_price_factor = x['open_price'].iloc[0]/x['fq_factor'].iloc[0]
+                firstday_pre_close_price_factor = x['pre_close_price'].iloc[0]/x['fq_factor'].iloc[0]
+                x['hfq_close_price'] = firstday_close_price_factor * x['fq_factor'] 
+                x['hfq_open_price'] = firstday_open_price_factor * x['fq_factor'] 
+                x['hfq_pre_close_price'] = firstday_pre_close_price_factor * x['fq_factor'] 
+                return x
+
+            df = df.groupby('ticker').apply(caculate_qf_factor)
             # 把量能有关的 停牌日设置为空，预期失真不如排出
             # df.loc[df.open_price==0, 'turnover_vol']= np.nan
             # df.loc[df.open_price==0, 'turnover_rate']= np.nan
@@ -562,7 +574,7 @@ class BaseStrategy:
                 pre["start_date"] = start_date
                 pre["end_date"] = end_date
                 pre["hold_days"] = pre["hold_days"] + tm.xperiod
-                pre["period_pre_start_close_price"] = pre["close_price"]
+                pre["period_pre_start_close_price"] = pre["hfq_close_price"]
 
                 # 判断是否出现不在自选股K线池里面
                 # 当日自选股
@@ -631,7 +643,7 @@ class BaseStrategy:
 
                 # 统计上个周期的涨跌幅
                 pre["period_pre_chg_pct"] = (
-                    pre["close_price"] / pre["period_pre_start_close_price"]
+                    pre["hfq_close_price"] / pre["period_pre_start_close_price"]
                     - 1
                 )
 
@@ -642,7 +654,7 @@ class BaseStrategy:
                     * pre_net
                 )
                 cur_net: float = (
-                    (pre["close_price"] / pre["period_pre_start_close_price"])
+                    (pre["hfq_close_price"] / pre["period_pre_start_close_price"])
                     * pre["period_start_pos_pct"]
                     * pre_net
                 ).sum() + balance
@@ -731,7 +743,7 @@ class BaseStrategy:
                     pre["period_start_pos_pct"]
                     * pre_net
                     * (
-                        pre["close_price"]
+                        pre["hfq_close_price"]
                         / pre["period_pre_start_close_price"]
                     )
                 ) / cur_net
@@ -742,7 +754,7 @@ class BaseStrategy:
                 sale_mfst["buy_date"] = sale["initial_date"]
                 sale_mfst["buy_price"] = sale["initial_price"]
                 sale_mfst["sale_date"] = sale["trade_date"]
-                sale_mfst["sale_price"] = sale["close_price"]
+                sale_mfst["sale_price"] = sale["hfq_close_price"]
                 sale_mfst["chg_pct"] = (
                     sale_mfst["sale_price"] / sale_mfst["buy_price"] - 1
                 )
@@ -865,7 +877,7 @@ class BaseStrategy:
                 # 创建两个临时列建仓日期
                 df_buy_candidate["initial_date"] = start_date
                 df_buy_candidate["initial_price"] = df_buy_candidate[
-                    "close_price"
+                    "hfq_close_price"
                 ]
 
                 df_buy_candidate[
@@ -964,7 +976,7 @@ class BaseStrategy:
         """
         df = self.df_position_mfst
         # 增加一列
-        df["period_start_close_price"] = df["close_price"]
+        df["period_start_close_price"] = df["hfq_close_price"]
         # 调整列的顺序 增强可读性
         reorder_pos_mfst_columns = [
             "period",
