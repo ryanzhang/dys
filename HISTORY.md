@@ -4,6 +4,11 @@ Changelog
 
 (unreleased)
 ------------
+- 增加后复权价格,所有价格相关指标，以及交易回测都适用后复权价格. [Ryan Zhang]
+- 增加上传http服务器功能,增加每股收益字段信息到revert工程. [Ryan Zhang]
+- 增加byly revert 不同限制条件下的输出. [Ryan Zhang]
+- Pump version up 0.2.6.dev. [Ryan Zhang]
+- Release: version 0.2.6 🚀 [Ryan Zhang]
 - Add byly revert. [Ryan Zhang]
 - Pump version up 0.2.5.dev. [Ryan Zhang]
 - Release: version 0.2.5 🚀 [Ryan Zhang]
