@@ -629,17 +629,16 @@ class BaseStrategy:
                         f"出现停牌股票，{suspend_pos[['start_date','ticker']]}"
                     )
 
-                    # 手动设置close_price 而不能是0 因为要计算净值
-                    # 停牌日收盘价本来就不是空, 如果为空，说明数据有问题
-                    # pre.loc[
-                    #     (pre.open_price.isna()) | (pre.open_price == 0),
-                    #     "close_price",
-                    # ] = pre["period_pre_start_close_price"]
-                    # pre.loc[
-                    #     (pre.open_price.isna()) | (pre.open_price == 0),
-                    #     "sec_short_name",
-                    # ] = "当日停牌"
-                    # pre.loc[pre.open_price.isna(), "open_price"] = 0
+                    # 手动设置相关字段, 而不能是0 因为要计算净值
+                    pre.loc[
+                        (pre.open_price.isna()),
+                        "hfq_close_price",
+                    ] = pre["period_pre_start_close_price"]
+                    pre.loc[
+                        (pre.open_price.isna()),
+                        "sec_short_name",
+                    ] = "当日停牌"
+                    pre.loc[pre.open_price.isna(), "open_price"] = 0
 
                 # 统计上个周期的涨跌幅
                 pre["period_pre_chg_pct"] = (
@@ -1104,14 +1103,15 @@ class BaseStrategy:
         starttime = datetime.now()
         if self.equd_groupby_date is None:
             self.equd_groupby_date = self.df_equd_pool.groupby("trade_date")
-        df = self.equd_groupby_date.get_group(trade_date)
+        today_equd_pool = self.equd_groupby_date.get_group(trade_date)
         # 筛选
-        df = df.query(self.select_conditions)
+        df = today_equd_pool.query(self.select_conditions)
         if pos is not None:
             outlier = pos.loc[~pos.ticker.isin(df.ticker), :]
             if outlier.shape[0] > 0:
                 logger.debug(f"已把跳出自选股的持仓中的股票加入到自选股中 {outlier}")
-                df = pd.concat([df, outlier[df.columns[2 : len(df.columns)]]])
+                updated_outlier = today_equd_pool.loc[today_equd_pool.ticker.isin(outlier.ticker),:]
+                df = pd.concat([df, updated_outlier])
 
         # 排序
         df = self.rank_df(df)
