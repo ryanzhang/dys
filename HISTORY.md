@@ -4,6 +4,9 @@ Changelog
 
 (unreleased)
 ------------
+- 增加bp,ep,ntra_bp指标. [Ryan Zhang]
+- Pump version up 0.2.8.dev. [Ryan Zhang]
+- Release: version 0.2.8 🚀 [Ryan Zhang]
 - Fix a bug outlier not updated with latest data. [Ryan Zhang]
 - Pump version up 0.2.7.dev. [Ryan Zhang]
 - Release: version 0.2.7 🚀 [Ryan Zhang]
