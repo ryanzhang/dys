@@ -36,7 +36,39 @@ class TestMetrics:
         # db= DBAdaptor(is_use_cache=True)
         yield
         logger.info("TestCase Level Tear Down is triggered!")
+
+    def test_ep(self, dfs):
+        df = dfs[0]
+
+        sm = SelectMetric(f"ep", m.ep)
+        df_metric = sm.apply(df, sm.name, sm.args)
+        assert sm.name in df_metric.columns
+        df = df.join(df_metric)
+        logger.debug(df_metric)
+
+    def test_bp(self, dfs):
+        df = dfs[0]
+
+        sm = SelectMetric(f"bp", m.bp)
+        df_metric = sm.apply(df, sm.name, sm.args)
+        assert sm.name in df_metric.columns
+        df = df.join(df_metric)
+        logger.debug(df_metric)
+
         
+    def test_ntra_bp(self, dfs):
+        df = dfs[0]
+        sm = SelectMetric(f"bp", m.bp)
+        df_metric = sm.apply(df, sm.name, sm.args)
+        assert sm.name in df_metric.columns
+        df = df.join(df_metric)
+
+        sm = SelectMetric(f"ntra_bp", m.ntra_bp)
+        df_metric = sm.apply(df, sm.name, sm.args)
+        assert sm.name in df_metric.columns
+        df = df.join(df_metric)
+        logger.debug(df_metric)
+
     def test_ps_pit(self, dfs):
         df = dfs[0]
         # df_with_sus=dfs[1]

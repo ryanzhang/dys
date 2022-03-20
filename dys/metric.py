@@ -21,6 +21,53 @@ class m(object):
         object (_type_): _description_
     """
 
+    def ep(df:pd.DataFrame, name, args) ->pd.DataFrame:
+        """当日PE(TTM) 倒数 
+
+        Args:
+            df (pd.DataFrame): _description_
+            name (_type_): _description_
+            args (_type_): _description_
+
+        Returns:
+            pd.DataFrame: _description_
+        """
+        df_metric = pd.DataFrame(index=df.index)
+        df_metric[name] = 1/df["pe"]
+        return df_metric
+
+    def bp(df:pd.DataFrame, name, args) ->pd.DataFrame:
+        """当日PE(TTM) 倒数 
+
+        Args:
+            df (pd.DataFrame): _description_
+            name (_type_): _description_
+            args (_type_): _description_
+
+        Returns:
+            pd.DataFrame: _description_
+        """
+        df_metric = pd.DataFrame(index=df.index)
+        df_metric[name] = 1/df["pb"]
+        return df_metric
+
+    def ntra_bp(df:pd.DataFrame, name, args) ->pd.DataFrame:
+        """中性bp
+
+        Args:
+            df (pd.DataFrame): _description_
+            args (_type_): _description_
+
+        Returns:
+            pd.DataFrame: _description_
+        """
+        df_metric = pd.DataFrame(index=df.index)
+        col_name="bp"
+
+        df = df.groupby("trade_date").apply(m.__neutralize, col_name)
+        df_metric[name] = df["ntra_metric"]
+        return df_metric
+
     def ps_pit(df: pd.DataFrame, name, args) -> pd.DataFrame:
         """增加每股收益，每股公积金，每股现金流指标，具体指标名称参考配置文档, 以及DBSchema字段解释
         @TODO
