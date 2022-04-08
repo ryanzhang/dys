@@ -32,13 +32,15 @@ class BylyStrategy(BaseStrategy):
         self.select_equd_by_equ_pool()
         logger.debug(f"自定义股票池{self.df_equ_pool.shape[0]}")
 
+    def set_list_days_metric(self):
+        self.append_metric(
+            SelectMetric("list_days", m.list_days, self.df_equ_pool),
+            reset_cache=False,
+        )
+
     def set_metrics(self):
         reset_cache = False
 
-        self.append_metric(
-            SelectMetric("list_days", m.list_days, self.df_equ_pool),
-            reset_cache=reset_cache,
-        )
         self.append_metric(
             SelectMetric("wq_alpha16", m.wq_alpha16), reset_cache=reset_cache
         )
@@ -117,9 +119,10 @@ class BylyStrategy(BaseStrategy):
             ),
             reset_cache=reset_cache,
         )
+
         self.append_metric(
             SelectMetric("ma5_turnover_value", m.ma_any, 5,'turnover_value'), reset_cache=reset_cache
-        )        
+        )
         self.append_metric(
             SelectMetric("wq_alpha16_rank", m.rank, "wq_alpha16", False),
             reset_cache=reset_cache,
@@ -170,6 +173,7 @@ class BylyStrategy(BaseStrategy):
             reset_cache=True,
         )        
 
+
     def set_select_condition(self):
         """设置选股条件字符串，条件字符串按照df.query接受的语法
 
@@ -184,14 +188,22 @@ class BylyStrategy(BaseStrategy):
         # 排除ST
         # 排除将要退市股票
         self.append_select_condition(
-            "(not sec_short_name.str.contains(pat = '退'))"
+            "not sec_short_name.str.contains(pat = '退')"
         )
         self.append_select_condition(
-            "(not sec_short_name.str.contains(pat = 'S'))"
+            "not sec_short_name.str.contains(pat = 'S')"
         )
         self.append_select_condition("open_price > 0")
 
+        self.append_select_condition("list_days < 365")
+
+        self.append_select_condition("list_days > 2")
+
         self.append_select_condition("open_price < 30")
+
+        self.append_select_condition("chg_pct < 0.096")
+
+        self.append_select_condition("chg_pct > -0.096")
 
 
 class TestBylyStrategy:
@@ -202,12 +214,12 @@ class TestBylyStrategy:
     @pytest.fixture()
     def byly(self):
         byly = BylyStrategy("20210104", "20230311")
+        byly.set_metric_folder(os.getcwd() + "/starget/30_cx")
+        byly.set_list_days_metric()
         # 排除确定性条件
-        df = byly.df_equd_pool
         byly.set_select_condition()
         byly.df_equd_pool = byly.df_equd_pool.query(byly.select_conditions)
         logger.debug(f"选股池总量:{byly.df_equd_pool.shape[0]}")
-        byly.set_metric_folder(os.getcwd() + "/starget/30")
         byly.debug_sample_date = date(2021, 1, 4)
         byly.set_metrics()
         return byly
@@ -220,11 +232,11 @@ class TestBylyStrategy:
 
     def test_get_detail_metric_by_export_file(self, byly: BylyStrategy):
         
-        directory = os.getcwd() + "/resources/byly/30"
+        directory = os.getcwd() + "/resources/byly/30_cx"
         output_directory = os.getcwd() + "/starget"
         for filename in os.listdir(directory):
             f = os.path.join(directory, filename)
-            obf = os.path.join(output_directory, "buy_30_" + filename)
+            obf = os.path.join(output_directory, "buy_30_cx" + filename)
             # osf = os.path.join(output_directory, "sale_" + filename)
             # checking if it is a file
             if os.path.isfile(f):
@@ -232,7 +244,7 @@ class TestBylyStrategy:
                 choice_equ = pd.read_csv(f, dtype={"ticker": object})
                 choice_equ["trade_date"] = choice_equ["买入日期"]
                 choice_equ.sort_values(['ticker', 'trade_date'], inplace=True)
-                choice_equ.drop_duplicates(subset=['ticker', 'trade_date'], keep='first', inplace=True)
+                choice_equ.drop_duplicates(subset=['ticker', 'trade_date'],keep='first', inplace=True)
                 assert choice_equ is not None
                 # assert choice_equ.shape[0] == 10
                 # assert choice_equ.shape[1] == 10

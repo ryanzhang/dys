@@ -32,13 +32,21 @@ class BylyStrategy(BaseStrategy):
         self.select_equd_by_equ_pool()
         logger.debug(f"自定义股票池{self.df_equ_pool.shape[0]}")
 
-    def set_metrics(self):
-        reset_cache = False
-
+    def set_list_days_metric(self):
         self.append_metric(
             SelectMetric("list_days", m.list_days, self.df_equ_pool),
-            reset_cache=reset_cache,
+            reset_cache=False,
         )
+
+    def set_metrics(self):
+        reset_cache = False
+        # reset_cache = True
+
+        # self.append_metric(
+        #     SelectMetric("list_days", m.list_days, self.df_equ_pool),
+        #     reset_cache=reset_cache,
+        # )
+
         self.append_metric(
             SelectMetric("wq_alpha16", m.wq_alpha16), reset_cache=reset_cache
         )
@@ -46,10 +54,10 @@ class BylyStrategy(BaseStrategy):
             SelectMetric("ntra_turnover_rate_5", m.ntra_turnover_rate, 5),
             reset_cache=reset_cache,
         )
-        # self.append_metric(
-        #     SelectMetric("neg_share_incr_60", m.neg_share_incr, 60, self.df_equd_pool_with_sus),
-        #     reset_cache=reset_cache,
-        # )
+        self.append_metric(
+            SelectMetric("neg_share_incr_60", m.neg_share_incr, 60, self.df_equd_pool_with_sus),
+            reset_cache=reset_cache,
+        )
         # reset_cache=True
         # self.append_metric(
         #     SelectMetric("float_rate_60", m.float_rate, 60, self.df_equd_pool_with_sus),
@@ -77,15 +85,15 @@ class BylyStrategy(BaseStrategy):
         )
         self.append_metric(
             SelectMetric("roi_volat_60", m.roi_volat, 60),
-            reset_cache=False,
+            reset_cache=reset_cache,
         )
         self.append_metric(
             SelectMetric("roi_volat_20", m.roi_volat, 20),
-            reset_cache=False,
+            reset_cache=reset_cache,
         )
         self.append_metric(
             SelectMetric("roi_volat_20", m.roi_volat, 20),
-            reset_cache=False,
+            reset_cache=reset_cache,
         )
         self.append_metric(
             SelectMetric("chg_pct_21", m.n_chg_pct, 21, self.df_equd_pool_with_sus),
@@ -97,15 +105,15 @@ class BylyStrategy(BaseStrategy):
         )
         self.append_metric(
             SelectMetric("price_ampl_rate", m.price_ampl_rate),
-            reset_cache=False,
+            reset_cache=reset_cache,
         )        
         self.append_metric(
             SelectMetric("ma10_price_ampl_rate", m.ma_any, 10, 'price_ampl_rate'),
-            reset_cache=False,
+            reset_cache=reset_cache,
         )
         self.append_metric(
             SelectMetric("vol_rate_5_20", m.vol_nm_rate, 5, 20),
-            reset_cache=False,
+            reset_cache=reset_cache,
         )
 
         self.append_metric(
@@ -134,7 +142,7 @@ class BylyStrategy(BaseStrategy):
         )
         self.append_metric(
             SelectMetric("vol_rate_5_20_rank", m.rank, "vol_rate_5_20", True),
-            reset_cache=False,
+            reset_cache=reset_cache,
         )        
         self.append_metric(
             SelectMetric("vol_rate_5_60_rank", m.rank, "vol_rate_5_60", True),
@@ -142,19 +150,19 @@ class BylyStrategy(BaseStrategy):
         )
         self.append_metric(
             SelectMetric("roi_volat_60_rank", m.rank, "roi_volat_60", True),
-            reset_cache=False,
+            reset_cache=reset_cache,
         )
         self.append_metric(
             SelectMetric("roi_volat_20_rank", m.rank, "roi_volat_20", True),
-            reset_cache=False,
+            reset_cache=reset_cache,
         )
         self.append_metric(
             SelectMetric("neg_market_value_rank", m.rank, "neg_market_value", True),
-            reset_cache=False,
+            reset_cache=reset_cache,
         )
         self.append_metric(
             SelectMetric("market_value_rank", m.rank, "market_value", True),
-            reset_cache=False,
+            reset_cache=reset_cache,
         )
 
         self.append_metric(
@@ -163,17 +171,14 @@ class BylyStrategy(BaseStrategy):
         )
         self.append_metric(
             SelectMetric("ma10_price_ampl_rate_rank", m.rank, "ma10_price_ampl_rate", False),
-            reset_cache=False,
-        )        
-        self.append_metric(
-            SelectMetric("vol_rate_5_20", m.rank, "vol_rate_5_20", True),
-            reset_cache=False,
+            reset_cache=reset_cache,
         )        
         self.append_metric(
             SelectMetric("ma5_turnover_value_rank", m.rank, "ma5_turnover_value", True),
-            reset_cache=True,
+            reset_cache=reset_cache,
         )        
-    def set_select_condition(self):
+
+    def set_select_condition(self, price, is_cx=False):
         """设置选股条件字符串，条件字符串按照df.query接受的语法
 
         Args:
@@ -194,61 +199,92 @@ class BylyStrategy(BaseStrategy):
         )
         self.append_select_condition("open_price > 0")
 
-        # self.append_select_condition("open_price < 15")
+        self.append_select_condition("chg_pct < 0.096")
+        self.append_select_condition("chg_pct > -0.096")
 
+        self.append_select_condition(f"open_price < {price}")
+
+        if is_cx:
+            self.append_select_condition("list_days < 365")
+            self.append_select_condition("list_days > 2")
+        else:
+            self.append_select_condition("list_days > 365")
 
 
 class TestBylyStrategy:
-    # @pytest.fixture(scope="class")
-    # def db(self):
-    #     return DBAdaptor()
 
-    @pytest.fixture()
-    def byly(self):
-        byly = BylyStrategy("20210104", "20230311")
-        # 排除确定性条件
-        byly.set_select_condition()
-        byly.df_equd_pool = byly.df_equd_pool.query(byly.select_conditions)
-        logger.debug(f"选股池总量:{byly.df_equd_pool.shape[0]}")
-        byly.set_metric_folder(os.getcwd() + "/starget")
-        byly.debug_sample_date = date(2021, 1, 4)
-        byly.set_metrics()
-        return byly
+    def test_get_detail_metric_by_export_file(self):
+        for p in [10,15,20,30,40,50]: 
+            byly = BylyStrategy("20210104", "20220406")
+            byly.set_metric_folder(os.getcwd() + f"/starget/{p}")
+            byly.set_list_days_metric()
+            # 排除确定性条件
+            byly.set_select_condition(p)
+            byly.df_equd_pool = byly.df_equd_pool.query(byly.select_conditions)
+            logger.debug(f"选股池总量:{byly.df_equd_pool.shape[0]}")
+            byly.debug_sample_date = date(2021, 1, 4)
+            byly.set_metrics()
 
-    @pytest.fixture(autouse=True)
-    def setup_teamdown(self):
-        logger.info("TestCase Level Setup is triggered!")
-        yield
-        logger.info("TestCase Level Tear Down is triggered!")
+            directory = os.getcwd() + f"/resources/byly/{p}"
+            output_directory = os.getcwd() + "/starget"
+            for filename in os.listdir(directory):
+                f = os.path.join(directory, filename)
+                obf = os.path.join(output_directory, f"buy_{p}_" + filename)
+                # osf = os.path.join(output_directory, "sale_" + filename)
+                # checking if it is a file
+                if os.path.isfile(f):
+                    logger.debug(f"Start to process{f}")
+                    choice_equ = pd.read_csv(f, dtype={"ticker": object})
+                    choice_equ["trade_date"] = choice_equ["买入日期"]
+                    choice_equ.sort_values(['ticker', 'trade_date'], inplace=True)
+                    choice_equ.drop_duplicates(subset=['ticker', 'trade_date'], keep='first', inplace=True)
+                    assert choice_equ is not None
+                    try:
+                        df = byly.get_choice_equ_metrics_by_list(choice_equ)
+                        # 增加基本市值列
+                    except Exception as e:
+                        logger.debug(f"{f}")
+                        raise Exception(e);
+                    # df.to_csv(obf, encoding="GBK")
+                    df.to_csv(obf)
 
-    def test_get_detail_metric_by_export_file(self, byly: BylyStrategy):
-        
-        directory = os.getcwd() + "/resources/byly/"
-        output_directory = os.getcwd() + "/starget"
-        for filename in os.listdir(directory):
-            f = os.path.join(directory, filename)
-            obf = os.path.join(output_directory, "buy_" + filename)
-            # osf = os.path.join(output_directory, "sale_" + filename)
-            # checking if it is a file
-            if os.path.isfile(f):
-                logger.debug(f"Start to process{f}")
-                choice_equ = pd.read_csv(f, dtype={"ticker": object})
-                choice_equ["trade_date"] = choice_equ["买入日期"]
-                choice_equ.sort_values(['ticker', 'trade_date'], inplace=True)
-                choice_equ.drop_duplicates(subset=['ticker', 'trade_date'], keep='first', inplace=True)
-                assert choice_equ is not None
-                # assert choice_equ.shape[0] == 10
-                # assert choice_equ.shape[1] == 10
-                try:
-                    df = byly.get_choice_equ_metrics_by_list(choice_equ)
-                except Exception as e:
-                    logger.debug(f"{f}")
-                    raise Exception(e);
-                # df.to_csv(obf, encoding="GBK")
-                df.to_csv(obf)
-                logger.debug(f"Export buy moment metrics in {obf}")
-                # choice_equ["trade_date"] = choice_equ["卖出日期"]
-                # df = byly.get_choice_equ_metrics_by_list(choice_equ)
-                # df.to_csv(osf, encoding="GBK")
-                # df.to_csv(osf)
-                # logger.debug(f"Export sale moment metrics in {osf}")
+                    logger.debug(f"Export buy moment metrics in {obf}")
+
+    def test_get_detail_cx_metric_by_export_file(self):
+        # for p in [20,30]: 
+        for p in [30]: 
+            byly = BylyStrategy("20210104", "20220406")
+            byly.set_metric_folder(os.getcwd() + f"/starget/{p}_cx")
+            byly.set_list_days_metric()
+            # 排除确定性条件
+            byly.set_select_condition(p,True)
+
+            byly.df_equd_pool = byly.df_equd_pool.query(byly.select_conditions)
+            logger.debug(f"选股池总量:{byly.df_equd_pool.shape[0]}")
+            byly.debug_sample_date = date(2021, 1, 4)
+            byly.set_metrics()
+
+            directory = os.getcwd() + f"/resources/byly/{p}_cx"
+            output_directory = os.getcwd() + "/starget"
+            for filename in os.listdir(directory):
+                f = os.path.join(directory, filename)
+                obf = os.path.join(output_directory, f"buy_{p}_cx_" + filename)
+                # osf = os.path.join(output_directory, "sale_" + filename)
+                # checking if it is a file
+                if os.path.isfile(f):
+                    logger.debug(f"Start to process{f}")
+                    choice_equ = pd.read_csv(f, dtype={"ticker": object})
+                    choice_equ["trade_date"] = choice_equ["买入日期"]
+                    choice_equ.sort_values(['ticker', 'trade_date'], inplace=True)
+                    choice_equ.drop_duplicates(subset=['ticker', 'trade_date'], keep='first', inplace=True)
+                    assert choice_equ is not None
+                    try:
+                        df = byly.get_choice_equ_metrics_by_list(choice_equ)
+                        # 增加基本市值列
+                    except Exception as e:
+                        logger.debug(f"{f}")
+                        raise Exception(e);
+                    # df.to_csv(obf, encoding="GBK")
+                    df.to_csv(obf)
+
+                    logger.debug(f"Export buy moment metrics in {obf}")

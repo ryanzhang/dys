@@ -143,11 +143,16 @@ dist: release
 
 COMPILE_TIME = $(shell date +"%Y%m%d%H%M")
 upload:
-	ssh root@192.168.2.15 mkdir /var/www/html/data/byly/$(COMPILE_TIME)
-	scp -r starget/*.csv root@192.168.2.15:/var/www/html/data/byly/$(COMPILE_TIME)/
+	ssh root@192.168.2.15 mkdir /var/www/html/quant-invest/qi/byly/$(COMPILE_TIME)
+	scp -r starget/*.csv root@192.168.2.15:/var/www/html/quant-invest/qi/byly/$(COMPILE_TIME)/
 
-# This project has been generated from ryanzhang/python-project-template which is forked from 
-# rochacbruno/python-project-template
-# __author__ = 'rochacbruno'
-# __repo__ = https://github.com/rochacbruno/python-project-template
-# __sponsor__ = https://github.com/sponsors/rochacbruno/
+
+.PHONY: wash_csv
+INPUT_CSV_FOLDER=resources/byly
+wash_csv: $(INPUT_CSV_FOLDER)/**/*
+	@for file in $^ ; do \
+		echo "Processing" $${file} ; \
+		sed -i -e 's/^\([0-9]\+\)/\1,/g' -e 's/ (/,/g' -e 's/)/,/g' -e 's/ -- /,/g' -e 's/\(202[0-9]-[0-9][0-9]-[0-9][0-9]\)/,\1,/g' -e 's/\([0-9]\+\.[0-9][0-9]\)/,\1,/g'  -e 's/-,/-/g' -e 's/,,/,/g' -e 's/,%/%/g' -e 's/ //g' -e 's/, ,/,/g' -e 's/,,/,/g' $${file} ; \
+		grep "\(.*,\)\{10\}" -r $${file} ;\
+	done
+
