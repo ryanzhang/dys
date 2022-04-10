@@ -55,6 +55,7 @@ class BaseStrategy:
         # 成员
         self.df_equ_pool = None
         self.df_equd_pool = None
+        self.df_my_pool = None
         self.df_equd_pool_with_sus = None
         self.equd_groupby_date = None
 
@@ -265,18 +266,21 @@ class BaseStrategy:
             raise Exception("从数据库加载日线数据为空!")
         logger.debug(f"股票池已经加载所有日线数据:{self.df_equd_pool.shape[0]}")
 
-    def select_equd_by_equ_pool(self):
+    # def select_equd_by_equ_pool(self, df_equ_pool):
+    def select_equd_by_equ_pool(self, df_equ_pool=None):
         """设置完自选股池后，需要手动调用这个函数更新 选股日线行情池
 
         Returns:
-            _type_: _description_
+            _type_: 返回根据股票池选出的日线行情总量
         """
         df = self.df_equd_pool
         oc = df.shape[0]
-        df = df[df["ticker"].isin(self.df_equ_pool["ticker"])]
-        self.df_equd_pool = df
-        nc = self.df_equd_pool.shape[0]
-        logger.debug(f"K线数据已根据股票池更新{self.df_equd_pool.shape[0]}, 过滤掉{nc-oc}")
+        if df_equ_pool is None:
+            df_equ_pool = self.df_equ_pool
+        df = df[df["ticker"].isin(df_equ_pool["ticker"])]
+        # self.df_equd_pool = df
+        nc = df.shape[0]
+        logger.debug(f"K线数据已根据股票池更新{df.shape[0]}, 过滤掉{nc-oc}")
         return df
 
     def append_select_condition(self, condition):
@@ -285,6 +289,8 @@ class BaseStrategy:
         Args:
             condition (_type_): _description_
         """
+        # logger.error("Deprecated")
+        # raise Exception("Deprecated!")
         # if self.debug_sample_date is not None:
         #     oc = self.df_equd_pool[
         #         self.df_equd_pool.trade_date == pd.to_datetime(self.debug_sample_date)
@@ -1103,14 +1109,16 @@ class BaseStrategy:
         starttime = datetime.now()
         if self.equd_groupby_date is None:
             self.equd_groupby_date = self.df_equd_pool.groupby("trade_date")
-        today_equd_pool = self.equd_groupby_date.get_group(trade_date)
+        today_mkt_equd_pool = self.equd_groupby_date.get_group(trade_date)
+
         # 筛选
-        df = today_equd_pool.query(self.select_conditions)
+        # 这里为什么需要重新筛选一遍
+        df = self.df_my_pool.loc[self.df_my_pool.trade_date == trade_date,:]
         if pos is not None:
             outlier = pos.loc[~pos.ticker.isin(df.ticker), :]
             if outlier.shape[0] > 0:
                 logger.debug(f"已把跳出自选股的持仓中的股票加入到自选股中 {outlier}")
-                updated_outlier = today_equd_pool.loc[today_equd_pool.ticker.isin(outlier.ticker),:]
+                updated_outlier = today_mkt_equd_pool.loc[today_equd_pool.ticker.isin(outlier.ticker),:]
                 df = pd.concat([df, updated_outlier])
 
         # 排序

@@ -246,11 +246,11 @@ class BylyStrategy(BaseStrategy):
             reset_cache=reset_cache,
         )        
         self.append_metric(
-            SelectMetric("ma5_price_devi", m.rank, "ma5_price_dev", False),
+            SelectMetric("ma5_price_devi_rank", m.rank, "ma5_price_devi", False),
             reset_cache=reset_cache,
         )        
         self.append_metric(
-            SelectMetric("ma10_price_devi", m.rank, "ma10_price_dev", False),
+            SelectMetric("ma10_price_devi_rank", m.rank, "ma10_price_devi", False),
             reset_cache=reset_cache,
         )        
 
