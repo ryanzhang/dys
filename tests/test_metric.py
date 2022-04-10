@@ -37,6 +37,15 @@ class TestMetrics:
         yield
         logger.info("TestCase Level Tear Down is triggered!")
 
+    def test_price_devi(self, dfs):
+        df = dfs[0]
+
+        sm = SelectMetric(f"price_devi", m.price_devi)
+        df_metric = sm.apply(df, sm.name, sm.args)
+        assert sm.name in df_metric.columns
+        df = df.join(df_metric)
+        logger.debug(df_metric)
+
     def test_ep(self, dfs):
         df = dfs[0]
 

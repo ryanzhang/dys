@@ -51,6 +51,9 @@ class BylyStrategy(BaseStrategy):
             SelectMetric("wq_alpha16", m.wq_alpha16), reset_cache=reset_cache
         )
         self.append_metric(
+            SelectMetric("wq_alpha13", m.wq_alpha13), reset_cache=reset_cache
+        )
+        self.append_metric(
             SelectMetric("ntra_turnover_rate_5", m.ntra_turnover_rate, 5),
             reset_cache=reset_cache,
         )
@@ -64,7 +67,23 @@ class BylyStrategy(BaseStrategy):
         #     reset_cache=reset_cache,
         # )
         self.append_metric(
+            SelectMetric("bias_6", m.ntra_bias, 6),
+            reset_cache=reset_cache,
+        )
+        self.append_metric(
             SelectMetric("ntra_bias_6", m.ntra_bias, 6),
+            reset_cache=reset_cache,
+        )
+        self.append_metric(
+            SelectMetric("bias_5", m.ntra_bias, 5),
+            reset_cache=reset_cache,
+        )
+        self.append_metric(
+            SelectMetric("ntra_bias_5", m.ntra_bias, 5),
+            reset_cache=reset_cache,
+        )
+        self.append_metric(
+            SelectMetric("bias_20", m.bias, 20),
             reset_cache=reset_cache,
         )
         self.append_metric(
@@ -72,11 +91,19 @@ class BylyStrategy(BaseStrategy):
             reset_cache=reset_cache,
         )
         self.append_metric(
-            SelectMetric("bias_6", m.ntra_bias, 6),
+            SelectMetric("bias_30", m.bias, 30),
             reset_cache=reset_cache,
         )
         self.append_metric(
-            SelectMetric("bias_20", m.bias, 20),
+            SelectMetric("ntra_bias_30", m.ntra_bias, 30),
+            reset_cache=reset_cache,
+        )
+        self.append_metric(
+            SelectMetric("bias_60", m.bias, 60),
+            reset_cache=reset_cache,
+        )
+        self.append_metric(
+            SelectMetric("ntra_bias_60", m.ntra_bias, 60),
             reset_cache=reset_cache,
         )
         self.append_metric(
@@ -108,6 +135,10 @@ class BylyStrategy(BaseStrategy):
             reset_cache=reset_cache,
         )        
         self.append_metric(
+            SelectMetric("ma5_price_ampl_rate", m.ma_any, 5, 'price_ampl_rate'),
+            reset_cache=reset_cache,
+        )
+        self.append_metric(
             SelectMetric("ma10_price_ampl_rate", m.ma_any, 10, 'price_ampl_rate'),
             reset_cache=reset_cache,
         )
@@ -129,7 +160,24 @@ class BylyStrategy(BaseStrategy):
             SelectMetric("ma5_turnover_value", m.ma_any, 5,'turnover_value'), reset_cache=reset_cache
         )        
         self.append_metric(
+            SelectMetric("ma20_turnover_value", m.ma_any, 20,'turnover_value'), reset_cache=reset_cache
+        )
+        self.append_metric(
+            SelectMetric("price_devi", m.price_devi ), reset_cache=reset_cache
+        )        
+        self.append_metric(
+            SelectMetric("ma5_price_devi", m.ma_any, 5,'price_devi'), reset_cache=reset_cache
+        )        
+        self.append_metric(
+            SelectMetric("ma10_price_devi", m.ma_any, 10,'price_devi'), reset_cache=reset_cache
+        )        
+
+        self.append_metric(
             SelectMetric("wq_alpha16_rank", m.rank, "wq_alpha16", False),
+            reset_cache=reset_cache,
+        )
+        self.append_metric(
+            SelectMetric("wq_alpha13_rank", m.rank, "wq_alpha13", False),
             reset_cache=reset_cache,
         )
         self.append_metric(
@@ -137,7 +185,19 @@ class BylyStrategy(BaseStrategy):
             reset_cache=reset_cache,
         )
         self.append_metric(
+            SelectMetric("ntra_bias_5_rank", m.rank, "ntra_bias_5", True),
+            reset_cache=reset_cache,
+        )
+        self.append_metric(
             SelectMetric("ntra_bias_20_rank", m.rank, "ntra_bias_20", True),
+            reset_cache=reset_cache,
+        )
+        self.append_metric(
+            SelectMetric("ntra_bias_30_rank", m.rank, "ntra_bias_30", True),
+            reset_cache=reset_cache,
+        )
+        self.append_metric(
+            SelectMetric("ntra_bias_60_rank", m.rank, "ntra_bias_60", True),
             reset_cache=reset_cache,
         )
         self.append_metric(
@@ -170,11 +230,27 @@ class BylyStrategy(BaseStrategy):
             reset_cache=reset_cache,
         )
         self.append_metric(
+            SelectMetric("ma5_price_ampl_rate_rank", m.rank, "ma5_price_ampl_rate", False),
+            reset_cache=reset_cache,
+        )        
+        self.append_metric(
             SelectMetric("ma10_price_ampl_rate_rank", m.rank, "ma10_price_ampl_rate", False),
             reset_cache=reset_cache,
         )        
         self.append_metric(
             SelectMetric("ma5_turnover_value_rank", m.rank, "ma5_turnover_value", True),
+            reset_cache=reset_cache,
+        )        
+        self.append_metric(
+            SelectMetric("ma20_turnover_value_rank", m.rank, "ma20_turnover_value", True),
+            reset_cache=reset_cache,
+        )        
+        self.append_metric(
+            SelectMetric("ma5_price_devi", m.rank, "ma5_price_dev", False),
+            reset_cache=reset_cache,
+        )        
+        self.append_metric(
+            SelectMetric("ma10_price_devi", m.rank, "ma10_price_dev", False),
             reset_cache=reset_cache,
         )        
 
@@ -251,8 +327,8 @@ class TestBylyStrategy:
                     logger.debug(f"Export buy moment metrics in {obf}")
 
     def test_get_detail_cx_metric_by_export_file(self):
-        # for p in [20,30]: 
-        for p in [30]: 
+        for p in [20,30]: 
+        # for p in [30]: 
             byly = BylyStrategy("20210104", "20220406")
             byly.set_metric_folder(os.getcwd() + f"/starget/{p}_cx")
             byly.set_list_days_metric()

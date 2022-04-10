@@ -6,6 +6,7 @@ import numpy as np
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
 import pandas as pd
+import math
 
 pd.options.mode.chained_assignment = None  # default='warn'
 from kupy import *
@@ -20,6 +21,22 @@ class m(object):
     Args:
         object (_type_): _description_
     """
+
+    def price_devi(df:pd.DataFrame, name, args) ->pd.DataFrame:
+        """均价偏离
+
+        Args:
+            df (pd.DataFrame): _description_
+            name (_type_): _description_
+            args (_type_): _description_
+
+        Returns:
+            pd.DataFrame: _description_
+        """
+        df_metric = pd.DataFrame(index=df.index)
+        df_metric[name] = df["vwap"]/df["close_price"]
+        df_metric = df_metric.applymap(math.log10)
+        return df_metric
 
     def ep(df:pd.DataFrame, name, args) ->pd.DataFrame:
         """当日PE(TTM) 倒数 
@@ -370,8 +387,38 @@ class m(object):
         # 求每日中每个股票的价格与量各自的在市场的排名值
         df_t = df.groupby("trade_date").apply(m.__price_vol_rank_rate)
         # 求价，量 排行的协方差的方向值(即协方差值*-1），协方差为负值时，它越小(即负值绝对值越大，表示背离越严重)
-        df_t = df_t.groupby("ticker").apply(m._negative_cov)
+        df_t = df_t.groupby("ticker").apply(m._negative_cov16)
         df_t["wq_alpha16"] = df_t.groupby("trade_date")["neg_cov"].transform(
+            "rank", method="max"
+        )
+        df_metric[name] = df_t["wq_alpha16"]
+        # Debug inform
+        logger.debug(f"Alpha016 sample数列已到处到/tmp/sample_wq_alpha16.csv")
+        df_t.loc[
+            (df_t["ticker"] == "603192")
+            & (df_t["trade_date"] == pd.to_datetime("20210104")),
+            :,
+        ].to_csv("/tmp/sample_wq_alpha16.csv")
+
+        return df_metric
+
+    def wq_alpha13(df: pd.DataFrame, name, args) -> pd.DataFrame:
+        """_wq alpha101 13号因子
+
+        Args:
+            df (pd.DataFrame): _description_
+            args (_type_): 不需要参数
+
+        Returns:
+            pd.DataFrame: _description_
+        """
+        df_metric = pd.DataFrame(index=df.index)
+
+        # 求每日中每个股票的价格与量各自的在市场的排名值
+        df_t = df.groupby("trade_date").apply(m.__price_vol_rank_rate)
+        # 求价，量 排行的协方差的方向值(即协方差值*-1），协方差为负值时，它越小(即负值绝对值越大，表示背离越严重)
+        df_t = df_t.groupby("ticker").apply(m._negative_cov13)
+        df_t["wq_alpha13"] = df_t.groupby("trade_date")["neg_cov"].transform(
             "rank", method="max"
         )
         df_metric[name] = df_t["wq_alpha16"]
@@ -742,10 +789,11 @@ class m(object):
         # stock = Alphas(x)
         # x["alpha16"] = stock.alpha016()
         x["highrank"] = x["highest_price"].rank()
+        x["closerank"] = x["close_price"].rank()
         x["volrank"] = x["turnover_vol"].rank()
         return x
 
-    def _negative_cov(x: pd.DataFrame, N: int = 5) -> pd.DataFrame:
+    def _negative_cov16(x: pd.DataFrame, N: int = 5) -> pd.DataFrame:
         """取
 
         Args:
@@ -754,6 +802,17 @@ class m(object):
         # x['highrank'] = x['highrank'].rolling(N)
         # x['volrank'] = x['volrank'].rolling(N)
         x["neg_cov"] = -1 * x["highrank"].rolling(N).cov(x["volrank"])
+        return x
+
+    def _negative_cov13(x: pd.DataFrame, N: int = 5) -> pd.DataFrame:
+        """取
+
+        Args:
+            x (_type_): _description_
+        """
+        # x['highrank'] = x['highrank'].rolling(N)
+        # x['volrank'] = x['volrank'].rolling(N)
+        x["neg_cov"] = -1 * x["closerank"].rolling(N).cov(x["volrank"])
         return x
 
     def __caculate_offset_chg_pct(x: pd.DataFrame, N: int, name):
