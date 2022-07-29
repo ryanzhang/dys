@@ -192,7 +192,7 @@ class BaseStrategy:
         self.start_date = None
         self.end_date = None
 
-        self.__load_total_data_set()
+        self.load_total_data_set()
 
         # self.df_equd_pool = self.df_equd_pool
         self.stockutil: StockUtil = StockUtil()
@@ -210,7 +210,7 @@ class BaseStrategy:
         # os.makedirs(f"{self.config.data_folder}/cache/", exist_ok=True)
         os.makedirs(f"{self.config.data_folder}/metrics/", exist_ok=True)
 
-    def __load_total_data_set(self):
+    def load_total_data_set(self):
         """从数据库加载文件，具备缓存能力, 缓存需要手动删除
 
         Raises:

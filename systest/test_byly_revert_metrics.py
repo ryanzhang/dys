@@ -59,7 +59,7 @@ class BylyStrategy(BaseStrategy):
         )
         self.append_metric(
             SelectMetric("neg_share_incr_60", m.neg_share_incr, 60, self.df_equd_pool_with_sus),
-            reset_cache=reset_cache,
+            reset_cache=True,
         )
         # reset_cache=True
         # self.append_metric(
@@ -290,8 +290,8 @@ class BylyStrategy(BaseStrategy):
 class TestBylyStrategy:
 
     def test_get_detail_metric_by_export_file(self):
-        for p in [10,15,20,30,40,50]: 
-            byly = BylyStrategy("20210104", "20220406")
+        for p in [10,15,20,30,35,40,50,60,100]: 
+            byly = BylyStrategy("20210104", "20220627")
             byly.set_metric_folder(os.getcwd() + f"/starget/{p}")
             byly.set_list_days_metric()
             # 排除确定性条件
@@ -329,7 +329,7 @@ class TestBylyStrategy:
     def test_get_detail_cx_metric_by_export_file(self):
         for p in [20,30]: 
         # for p in [30]: 
-            byly = BylyStrategy("20210104", "20220406")
+            byly = BylyStrategy("20210104", "20220627")
             byly.set_metric_folder(os.getcwd() + f"/starget/{p}_cx")
             byly.set_list_days_metric()
             # 排除确定性条件

@@ -511,6 +511,7 @@ class m(object):
 
     def float_value(df: pd.DataFrame, name, args) -> pd.DataFrame:
         """N日内新增流通市值，单位万元
+        Deprecated
 
         Args:
             df (pd.DataFrame): _description_
@@ -563,14 +564,16 @@ class m(object):
             raise Exception("解禁比例指标需要两个参数:1. 解禁前多少日受影响， 2.含停牌日df")
 
         df_metric = pd.DataFrame(index=df.index)
+        # df_metric["id"] = df["id"]
 
         N = args[0]
         x = args[1]
 
-        x = m.__calc_float_num(x, N)
+        # x = m.__calc_float_num(x, N)
+        x = x.groupby('ticker').apply(m.__calc_float_num,N)
         df = df.join(x.iloc[:, -1])
 
-        df_metric[name] = df["neg_shares_incr"]
+        df_metric[name] = df["neg_shares_incr"]/10000
         return df_metric
 
     def float_rate(df: pd.DataFrame, name, args) -> pd.DataFrame:
@@ -777,9 +780,35 @@ class m(object):
         col_name = args[0]
         smallfirst = args[1]
         df_metric = pd.DataFrame(index=df.index)
+
         df_metric[name] = df.groupby("trade_date")[col_name].transform(
             "rank", ascending=smallfirst
         )
+        return df_metric
+
+    def rank_subset(df: pd.DataFrame, name, args) -> pd.DataFrame:
+        """N日平均成交量 包含当前日
+
+        Args:
+            df (pd.DataFrame): _description_
+            args (_type_): _description_
+            1. N日区间
+
+        Returns:
+            pd.DataFrame: _description_
+        """
+        col_name = args[0]
+        smallfirst = args[1]
+        subset = args[2]
+        df_metric = pd.DataFrame(index=df.index)
+        df_metric["id"] = df["id"]
+
+        subset[name] = subset.groupby("trade_date")[col_name].transform(
+            "rank", ascending=smallfirst
+        )
+        df_metric = df_metric.join(subset.loc[:,name])
+        df_metric.drop("id", axis=1, inplace=True)
+
         return df_metric
 
     # Private Method
