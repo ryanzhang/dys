@@ -254,7 +254,7 @@ class BylyStrategy(BaseStrategy):
             reset_cache=reset_cache,
         )        
 
-    def set_select_condition(self, price, is_cx=False):
+    def set_select_condition(self, price, is_cx=False, is_gp=False):
         """设置选股条件字符串，条件字符串按照df.query接受的语法
 
         Args:
@@ -284,13 +284,15 @@ class BylyStrategy(BaseStrategy):
             self.append_select_condition("list_days < 365")
             self.append_select_condition("list_days > 2")
         else:
-            self.append_select_condition("list_days > 365")
+            if not is_gp:
+                self.append_select_condition("list_days > 365")
 
 
 class TestBylyStrategy:
 
     def test_get_detail_metric_by_export_file(self):
         for p in [10,15,20,30,35,40,50,60,100]: 
+        # for p in [50]: 
             byly = BylyStrategy("20210104", "20220728")
             byly.set_metric_folder(os.getcwd() + f"/starget/{p}")
             byly.set_list_days_metric()
@@ -327,7 +329,7 @@ class TestBylyStrategy:
                     logger.debug(f"Export buy moment metrics in {obf}")
 
     def test_get_detail_cx_metric_by_export_file(self):
-        for p in [20,30]: 
+        for p in [30]: 
         # for p in [30]: 
             byly = BylyStrategy("20210104", "20220728")
             byly.set_metric_folder(os.getcwd() + f"/starget/{p}_cx")
@@ -345,6 +347,45 @@ class TestBylyStrategy:
             for filename in os.listdir(directory):
                 f = os.path.join(directory, filename)
                 obf = os.path.join(output_directory, f"buy_{p}_cx_" + filename)
+                # osf = os.path.join(output_directory, "sale_" + filename)
+                # checking if it is a file
+                if os.path.isfile(f):
+                    logger.debug(f"Start to process{f}")
+                    choice_equ = pd.read_csv(f, dtype={"ticker": object})
+                    choice_equ["trade_date"] = choice_equ["买入日期"]
+                    choice_equ.sort_values(['ticker', 'trade_date'], inplace=True)
+                    choice_equ.drop_duplicates(subset=['ticker', 'trade_date'], keep='first', inplace=True)
+                    assert choice_equ is not None
+                    try:
+                        df = byly.get_choice_equ_metrics_by_list(choice_equ)
+                        # 增加基本市值列
+                    except Exception as e:
+                        logger.debug(f"{f}")
+                        raise Exception(e);
+                    # df.to_csv(obf, encoding="GBK")
+                    df.to_csv(obf)
+
+                    logger.debug(f"Export buy moment metrics in {obf}")
+
+    def test_get_detail_gp_metric_by_export_file(self):
+        for p in [50]: 
+        # for p in [30]: 
+            byly = BylyStrategy("20210104", "20220728")
+            byly.set_metric_folder(os.getcwd() + f"/starget/{p}_gp")
+            byly.set_list_days_metric()
+            # 排除确定性条件
+            byly.set_select_condition(p,is_cx=False, is_gp=True)
+
+            byly.df_equd_pool = byly.df_equd_pool.query(byly.select_conditions)
+            logger.debug(f"选股池总量:{byly.df_equd_pool.shape[0]}")
+            byly.debug_sample_date = date(2021, 1, 4)
+            byly.set_metrics()
+
+            directory = os.getcwd() + f"/resources/byly/{p}_gp"
+            output_directory = os.getcwd() + "/starget"
+            for filename in os.listdir(directory):
+                f = os.path.join(directory, filename)
+                obf = os.path.join(output_directory, f"buy_{p}_gp_" + filename)
                 # osf = os.path.join(output_directory, "sale_" + filename)
                 # checking if it is a file
                 if os.path.isfile(f):
